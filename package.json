@@ -1,0 +1,12 @@
+{
+  "name": "vekpmt-portal",
+  "version": "1.0.0",
+  "scripts": {
+    "install": "npm install --prefix backend",
+    "start": "node backend/src/index.js",
+    "build": "npm install --prefix backend"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
