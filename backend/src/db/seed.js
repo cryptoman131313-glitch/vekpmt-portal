@@ -87,14 +87,26 @@ async function seed() {
     const firstStatus = typeStatuses[0]?.key || 'new';
     const secondStatus = typeStatuses[1]?.key || 'in_progress';
 
-    // Удаляем старые заявки клиента и пересоздаём с полной историей
-    await client.query(`DELETE FROM tickets WHERE client_id = $1`, [clientId]);
-
     const clientUserRes = await client.query(`SELECT id FROM client_users WHERE email = $1`, ['client@test.ru']);
     const clientUserId = clientUserRes.rows[0].id;
 
     const engineerRes = await client.query(`SELECT id FROM users WHERE email = $1`, ['engineer@vekpmt.ru']);
     const engineerId = engineerRes.rows[0].id;
+
+    // Создаём тестовую заявку только если её ещё нет
+    const existingTicket = await client.query(
+      `SELECT id FROM tickets WHERE client_id = $1 AND description = $2 LIMIT 1`,
+      [clientId, 'Не срабатывает датчик подачи плёнки. Машина останавливается на 3-м цикле упаковки. На дисплее ошибка E-07.']
+    );
+    if (existingTicket.rows.length > 0) {
+      console.log(`Заявка уже существует, пропускаем создание`);
+      console.log('=== Тестовые данные уже существуют ===');
+      console.log('Руководитель: admin@vekpmt.ru / Admin1234');
+      console.log('Менеджер:     manager@vekpmt.ru / Admin1234');
+      console.log('Инженер:      engineer@vekpmt.ru / Admin1234');
+      console.log('Клиент:       client@test.ru / Client1234');
+      return;
+    }
 
     const ticketRes = await client.query(`
       INSERT INTO tickets (client_id, equipment_id, type_id, status, description, assigned_to, created_by_client)

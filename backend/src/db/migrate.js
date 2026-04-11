@@ -176,6 +176,10 @@ CREATE TABLE IF NOT EXISTS system_settings (
 -- Доп. колонки (добавлены позже, идемпотентно)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS show_avatar BOOLEAN DEFAULT false;
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS characteristics JSONB DEFAULT '{}';
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS ticket_id INTEGER REFERENCES tickets(id) ON DELETE CASCADE;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS uploaded_by_type VARCHAR(20);
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS uploaded_by_name VARCHAR(255);
 
 -- Индексы
 CREATE INDEX IF NOT EXISTS idx_tickets_client ON tickets(client_id);

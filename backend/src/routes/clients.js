@@ -18,6 +18,13 @@ router.post('/', authMiddleware, async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active') RETURNING id, company_name, contact_name, contact_email`,
       [company_name, inn || null, legal_address || null, actual_address || null, contact_name, contact_phone, contact_email.toLowerCase(), password_hash]
     );
+    // Создаём запись в client_users чтобы клиент мог войти в ЛК
+    await pool.query(
+      `INSERT INTO client_users (client_id, email, password_hash, name, is_active)
+       VALUES ($1, $2, $3, $4, true)
+       ON CONFLICT (email) DO UPDATE SET password_hash = $3, is_active = true`,
+      [rows[0].id, contact_email.toLowerCase(), password_hash, contact_name]
+    );
     res.status(201).json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Клиент с таким email уже существует' });
