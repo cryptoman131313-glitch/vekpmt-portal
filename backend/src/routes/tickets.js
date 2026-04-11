@@ -341,6 +341,11 @@ router.post('/:id/messages', authMiddleware, async (req, res) => {
 
     // Авто-статус только для канала Обращение
     if (channel === 'appeal') {
+      await pool.query(
+        `INSERT INTO ticket_history (ticket_id, changed_by, changed_by_type, field_name, old_value, new_value)
+         VALUES ($1, $2, 'user', 'message', null, $3)`,
+        [req.params.id, req.user.id, content.slice(0, 100)]
+      );
       await applyAutoStatus(req.params.id, 'staff_replied', req.user.id, 'user');
 
       // Уведомляем директоров и менеджеров о новом сообщении (кроме отправителя)
@@ -400,6 +405,11 @@ router.post('/client/new', clientAuth, async (req, res) => {
       `INSERT INTO tickets (client_id, equipment_id, equipment_manual, serial_manual, type_id, status, description, created_by_client)
        VALUES ($1, $2, $3, $4, $5, 'new', $6, true) RETURNING *`,
       [req.client.id, equipment_id || null, equipment_manual || null, serial_manual || null, type_id, description]
+    );
+    await pool.query(
+      `INSERT INTO ticket_history (ticket_id, changed_by, changed_by_type, field_name, old_value, new_value)
+       VALUES ($1, $2, 'client', 'created', null, 'new')`,
+      [rows[0].id, req.client.id]
     );
     // Уведомляем всех активных сотрудников
     const clientInfo = await pool.query('SELECT company_name FROM clients WHERE id = $1', [req.client.id]);
@@ -474,7 +484,11 @@ router.post('/:id/messages/client', clientAuth, async (req, res) => {
       [req.params.id, req.client.id, content]
     );
     await pool.query('UPDATE tickets SET updated_at = NOW() WHERE id = $1', [req.params.id]);
-
+    await pool.query(
+      `INSERT INTO ticket_history (ticket_id, changed_by, changed_by_type, field_name, old_value, new_value)
+       VALUES ($1, $2, 'client', 'message', null, $3)`,
+      [req.params.id, req.client.id, content.slice(0, 100)]
+    );
     // Авто-статус: клиент ответил
     await applyAutoStatus(req.params.id, 'client_replied', req.client.id, 'client');
 

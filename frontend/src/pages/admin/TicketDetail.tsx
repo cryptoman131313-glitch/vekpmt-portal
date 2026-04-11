@@ -329,7 +329,10 @@ function formatHistoryEvent(h: { field_name: string; old_value: string; new_valu
     new: 'Новая', in_progress: 'В работе', waiting_parts: 'Ожид. запчастей',
     waiting_client: 'Ожид. клиента', done: 'Выполнена', cancelled: 'Отменена'
   }
+  if (h.field_name === 'created') return `Заявка создана`
+  if (h.field_name === 'message') return `Отправлено сообщение: «${h.new_value}${h.new_value?.length >= 100 ? '...' : ''}»`
   if (h.field_name === 'status') {
+    if (!h.old_value) return `Заявка создана со статусом: ${statusLabels[h.new_value] || h.new_value}`
     const from = statusLabels[h.old_value] || h.old_value
     const to = statusLabels[h.new_value] || h.new_value
     return `Статус изменён: ${from} → ${to}`
