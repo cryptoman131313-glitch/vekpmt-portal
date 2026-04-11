@@ -53,11 +53,16 @@ export default function ClientTicketDetail() {
 
   const send = async () => {
     if (!text.trim()) return
+    const optimistic: Message = {
+      id: `tmp-${Date.now()}`, sender_type: 'client', sender_name: 'Вы',
+      sender_role: '', content: text, created_at: new Date().toISOString()
+    }
+    setMessages(prev => [...prev, optimistic])
+    setText('')
     try {
-      await api.post(`/tickets/${id}/messages/client`, { content: text })
-      setText('')
+      await api.post(`/tickets/${id}/messages/client`, { content: optimistic.content })
       loadMessages()
-    } catch { toast.error('Ошибка отправки') }
+    } catch { toast.error('Ошибка отправки'); setMessages(prev => prev.filter(m => m.id !== optimistic.id)) }
   }
 
   if (!ticket) return <div className="p-6 text-[#71717A]">Загрузка...</div>

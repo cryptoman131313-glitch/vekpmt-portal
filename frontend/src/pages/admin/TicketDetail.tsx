@@ -41,6 +41,7 @@ export default function TicketDetail() {
   const [historyStats, setHistoryStats] = useState<HistoryStats | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const msgCache = useRef<Record<string, Message[]>>({})
 
   useEffect(() => {
     api.get(`/tickets/${id}`).then(r => { setTicket(r.data); setStatus(r.data.status) }).catch(() => navigate('/admin/tickets'))
@@ -49,12 +50,17 @@ export default function TicketDetail() {
   }, [id])
 
   useEffect(() => {
-    if (id) loadMessages()
+    if (!id) return
+    // Показываем кэш мгновенно, затем обновляем в фоне
+    if (msgCache.current[channel]) setMessages(msgCache.current[channel])
+    api.get(`/tickets/${id}/messages`, { params: { channel } })
+      .then(r => { msgCache.current[channel] = r.data; setMessages(r.data) })
+      .catch(() => {})
   }, [id, channel])
 
   const loadMessages = () => {
     api.get(`/tickets/${id}/messages`, { params: { channel } })
-      .then(r => setMessages(r.data))
+      .then(r => { msgCache.current[channel] = r.data; setMessages(r.data) })
       .catch(() => {})
   }
 
@@ -70,11 +76,17 @@ export default function TicketDetail() {
 
   const handleSend = async () => {
     if (!text.trim()) return
+    const optimistic: Message = {
+      id: `tmp-${Date.now()}`, sender_type: 'user', sender_name: user?.name || '',
+      sender_role: user?.role || '', channel, content: text, is_edited: false,
+      created_at: new Date().toISOString(), sender_id: user?.id || ''
+    }
+    setMessages(prev => [...prev, optimistic])
+    setText('')
     try {
-      await api.post(`/tickets/${id}/messages`, { content: text, channel })
-      setText('')
+      await api.post(`/tickets/${id}/messages`, { content: optimistic.content, channel })
       loadMessages()
-    } catch { toast.error('Ошибка отправки') }
+    } catch { toast.error('Ошибка отправки'); setMessages(prev => prev.filter(m => m.id !== optimistic.id)) }
   }
 
   const handleEdit = async (msgId: string) => {
