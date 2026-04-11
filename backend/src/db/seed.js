@@ -80,11 +80,25 @@ async function seed() {
     ]);
     const ticketId = ticketRes.rows[0].id;
 
-    // Сообщение в заявке
+    // Сообщение от клиента в обращении
+    const clientUserRes = await client.query(`SELECT id FROM client_users WHERE email = $1`, ['client@test.ru']);
+    const clientUserId = clientUserRes.rows[0].id;
+    await client.query(`
+      INSERT INTO messages (ticket_id, sender_type, sender_id, channel, content)
+      VALUES ($1, 'client', $2, 'appeal', $3)
+    `, [ticketId, clientUserId, 'Добрый день! Машина останавливается на 3-м цикле упаковки, на дисплее мигает ошибка E-07. Пробовали перезапускать — не помогает.']);
+
+    // Ответ менеджера в обращении
+    await client.query(`
+      INSERT INTO messages (ticket_id, sender_type, sender_id, channel, content)
+      VALUES ($1, 'user', $2, 'appeal', $3)
+    `, [ticketId, managerId, 'Добрый день, Иван Иванович! Приняли заявку в работу. Инженер свяжется с вами в течение рабочего дня для уточнения деталей.']);
+
+    // Служебная заметка
     await client.query(`
       INSERT INTO messages (ticket_id, sender_type, sender_id, channel, content)
       VALUES ($1, 'user', $2, 'service', $3)
-    `, [ticketId, managerId, 'Приняли заявку в работу. Инженер выедет в течение 2 рабочих дней.']);
+    `, [ticketId, managerId, 'Ошибка E-07 — сбой датчика подачи плёнки. Скорее всего загрязнение или смещение. Нужно взять датчик FT-12 в запас.']);
 
     // Документ
     await client.query(`
