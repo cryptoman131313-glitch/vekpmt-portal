@@ -53,8 +53,8 @@ export default function TicketDetail() {
 
   useEffect(() => {
     if (!id) return
-    // Показываем кэш мгновенно, затем обновляем в фоне
-    if (msgCache.current[channel]) setMessages(msgCache.current[channel])
+    // Если кэш есть — показываем мгновенно, иначе сразу очищаем чтобы не было залипания
+    setMessages(msgCache.current[channel] || [])
     api.get(`/tickets/${id}/messages`, { params: { channel } })
       .then(r => { msgCache.current[channel] = r.data; setMessages(r.data) })
       .catch(() => {})
