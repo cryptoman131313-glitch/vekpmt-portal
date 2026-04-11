@@ -201,7 +201,7 @@ export default function TicketDetail() {
         </div>
 
         {/* Messages */}
-        <div className="p-4 overflow-y-auto space-y-4" style={{ height: 'calc(100vh - 520px)', minHeight: 300 }}>
+        <div className={`p-4 overflow-y-auto space-y-4 ${channel === 'history' ? 'hidden' : ''}`} style={{ height: 'calc(100vh - 520px)', minHeight: 300 }}>
           {messages.length === 0 && (
             <div className="text-center text-[#A1A1AA] py-8 text-sm">Сообщений пока нет</div>
           )}
@@ -289,20 +289,25 @@ export default function TicketDetail() {
 
         {/* Reply form */}
         {channel !== 'history' && <div className="border-t border-[#E4E4E7] p-4">
-          <div className="flex gap-2 items-end">
-            <textarea className="form-control text-sm resize-none flex-1" rows={3}
-              placeholder={channel === 'appeal' ? 'Ответ клиенту...' : channel === 'service' ? 'Служебное сообщение...' : 'Примечание...'}
-              value={text} onChange={e => setText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }} />
-            <div className="flex flex-col gap-2">
-              <>
-                <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} />
-                <button onClick={() => fileInputRef.current?.click()} className="btn btn-secondary flex-shrink-0" style={{ width: 36, height: 36, padding: 0, justifyContent: 'center' }} title="Прикрепить файл"><Paperclip size={16} /></button>
-              </>
-              <button onClick={handleSend} className="btn btn-primary flex-shrink-0" style={{ width: 36, height: 36, padding: 0, justifyContent: 'center' }} title="Отправить (Ctrl+Enter)"><Send size={16} /></button>
+          <textarea className="form-control text-sm resize-none w-full" rows={3}
+            placeholder={channel === 'appeal' ? 'Ответ клиенту...' : channel === 'service' ? 'Служебное сообщение...' : 'Примечание...'}
+            value={text} onChange={e => setText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }} />
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-[10px] text-[#A1A1AA]">Enter — отправить · Shift+Enter — новая строка</span>
+            <div className="flex items-center gap-2">
+              <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} />
+              <button onClick={() => fileInputRef.current?.click()}
+                className="btn btn-secondary"
+                style={{ width: 36, height: 36, padding: 0, justifyContent: 'center' }}
+                title="Прикрепить файл">
+                <Paperclip size={16} />
+              </button>
+              <button onClick={handleSend} className="btn btn-primary gap-2" style={{ height: 36, paddingLeft: 16, paddingRight: 16 }}>
+                <Send size={15} /> Отправить
+              </button>
             </div>
           </div>
-          <div className="text-[10px] text-[#A1A1AA] mt-1">Enter — отправить · Shift+Enter — новая строка</div>
         </div>}
 
         {/* Attachments */}

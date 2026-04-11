@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../../api/client'
+import { getCache, setCache } from '../../api/cache'
 import { FileText, Download, Wrench } from 'lucide-react'
 
 const EQ_COLORS = [
@@ -26,8 +27,19 @@ export default function ClientDocs() {
   const [docTypes, setDocTypes] = useState<DocType[]>([])
 
   useEffect(() => {
-    api.get('/documents/my').then(r => setDocs(r.data)).catch(() => {})
-    api.get('/settings/document_types').then(r => setDocTypes(r.data || [])).catch(() => {})
+    const cachedDocs = getCache('client_docs')
+    if (cachedDocs) setDocs(cachedDocs)
+    const cachedTypes = getCache('document_types')
+    if (cachedTypes) setDocTypes(cachedTypes)
+    Promise.all([
+      api.get('/documents/my'),
+      api.get('/settings/document_types')
+    ]).then(([docsRes, typesRes]) => {
+      setCache('client_docs', docsRes.data)
+      setCache('document_types', typesRes.data || [])
+      setDocs(docsRes.data)
+      setDocTypes(typesRes.data || [])
+    }).catch(() => {})
   }, [])
 
   const getTypeName = (id: string) => docTypes.find(t => t.id === id)?.name || id

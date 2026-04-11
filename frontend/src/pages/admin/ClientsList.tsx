@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/client'
+import { getCache, setCache } from '../../api/cache'
 import toast from 'react-hot-toast'
 import { Search, UserPlus, Eye, EyeOff } from 'lucide-react'
 
@@ -17,7 +18,17 @@ export default function ClientsList() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
-  const load = () => api.get('/clients', { params: search ? { search } : {} }).then(r => setClients(r.data)).catch(() => {})
+  const load = (q?: string) => {
+    const key = 'clients_list'
+    if (!q) {
+      const cached = getCache(key)
+      if (cached) setClients(cached)
+    }
+    api.get('/clients', { params: q ? { search: q } : {} }).then(r => {
+      if (!q) setCache(key, r.data)
+      setClients(r.data)
+    }).catch(() => {})
+  }
 
   useEffect(() => { load() }, [])
 
@@ -54,7 +65,7 @@ export default function ClientsList() {
         <div className="flex items-center gap-2 border border-[#E4E4E7] rounded px-3 py-2 bg-white min-w-[300px]">
           <Search size={15} className="text-[#A1A1AA]" />
           <input className="outline-none text-sm flex-1 bg-transparent" placeholder="Поиск по клиентам..."
-            value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && load()} />
+            value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && load(search)} />
         </div>
       </div>
 

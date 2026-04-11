@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/client'
+import { getCache, setCache } from '../../api/cache'
 import { formatDate, statusLabel, statusBadgeClass } from '../../utils/helpers'
 
 interface Ticket { id: number; company_name: string; type_name: string; status: string; created_at: string; equipment_model: string }
@@ -25,8 +26,13 @@ export default function Dashboard() {
   const [chart, setChart] = useState<ChartData | null>(null)
 
   useEffect(() => {
-    api.get('/tickets?limit=8').then(r => setTickets(r.data.tickets || [])).catch(() => {})
-    api.get('/tickets/stats/chart').then(r => setChart(r.data)).catch(() => {})
+    const cachedTickets = getCache('dashboard_tickets')
+    if (cachedTickets) setTickets(cachedTickets)
+    api.get('/tickets?limit=8').then(r => { setCache('dashboard_tickets', r.data.tickets || []); setTickets(r.data.tickets || []) }).catch(() => {})
+
+    const cachedChart = getCache('dashboard_chart')
+    if (cachedChart) setChart(cachedChart)
+    api.get('/tickets/stats/chart').then(r => { setCache('dashboard_chart', r.data); setChart(r.data) }).catch(() => {})
   }, [])
 
   const maxDay = Math.max(...(chart?.byDay.map(d => d.count) || [1]), 1)

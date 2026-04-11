@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/client'
+import { getCache, setCache } from '../../api/cache'
 import { Wrench } from 'lucide-react'
 
 interface Equipment {
@@ -16,8 +17,19 @@ export default function ClientEquipment() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    api.get('/equipment/client/list').then(r => setItems(r.data)).catch(() => {})
-    api.get('/settings/equipment_fields').then(r => setFields(r.data || [])).catch(() => {})
+    const cachedItems = getCache('client_equipment_list')
+    if (cachedItems) setItems(cachedItems)
+    const cachedFields = getCache('equipment_fields')
+    if (cachedFields) setFields(cachedFields)
+    Promise.all([
+      api.get('/equipment/client/list'),
+      api.get('/settings/equipment_fields')
+    ]).then(([eqRes, fieldsRes]) => {
+      setCache('client_equipment_list', eqRes.data)
+      setCache('equipment_fields', fieldsRes.data || [])
+      setItems(eqRes.data)
+      setFields(fieldsRes.data || [])
+    }).catch(() => {})
   }, [])
 
   return (

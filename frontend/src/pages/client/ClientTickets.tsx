@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/client'
+import { getCache, setCache } from '../../api/cache'
 import { formatDate, statusLabel, statusBadgeClass } from '../../utils/helpers'
 import { Plus } from 'lucide-react'
 
@@ -11,7 +12,9 @@ export default function ClientTickets() {
   const [tickets, setTickets] = useState<Ticket[]>([])
 
   useEffect(() => {
-    api.get('/tickets/client/list').then(r => setTickets(r.data)).catch(() => {})
+    const cached = getCache('client_tickets')
+    if (cached) setTickets(cached)
+    api.get('/tickets/client/list').then(r => { setCache('client_tickets', r.data); setTickets(r.data) }).catch(() => {})
   }, [])
 
   return (
