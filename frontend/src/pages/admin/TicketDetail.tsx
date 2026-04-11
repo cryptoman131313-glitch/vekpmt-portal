@@ -218,15 +218,17 @@ export default function TicketDetail() {
                     <button onClick={() => setEditId(null)} className="btn btn-secondary py-1 px-3 text-xs">Отмена</button>
                   </div>
                 ) : (
-                  <div className={`rounded-lg px-3 py-2 text-sm relative group
-                    ${channel === 'service' ? 'bg-yellow-50 border border-yellow-100' : channel === 'notes' ? 'bg-purple-50 border border-purple-100' : 'bg-[#F4F4F5]'}`}>
-                    {m.content}
+                  <div className="group">
+                    <div className={`rounded-lg px-3 py-2 text-sm
+                      ${channel === 'service' ? 'bg-yellow-50 border border-yellow-100' : channel === 'notes' ? 'bg-purple-50 border border-purple-100' : 'bg-[#F4F4F5]'}`}>
+                      {m.content}
+                    </div>
                     {m.sender_type === 'user' && m.sender_id === user?.id && (user?.role === 'director' || user?.permissions?.can_edit_messages) && (
-                      <div className="absolute right-1 top-1 hidden group-hover:flex gap-1">
+                      <div className="hidden group-hover:flex gap-1 mt-1">
                         <button onClick={() => { setEditId(m.id); setEditText(m.content) }}
-                          className="p-1 rounded hover:bg-white/60 text-[#71717A]"><Pencil size={12} /></button>
+                          className="p-1 rounded hover:bg-[#E4E4E7] text-[#71717A]" title="Редактировать"><Pencil size={12} /></button>
                         <button onClick={() => handleDelete(m.id)}
-                          className="p-1 rounded hover:bg-white/60 text-red-400"><Trash2 size={12} /></button>
+                          className="p-1 rounded hover:bg-[#FEE2E2] text-red-400" title="Удалить"><Trash2 size={12} /></button>
                       </div>
                     )}
                   </div>
