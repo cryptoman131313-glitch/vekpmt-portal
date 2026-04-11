@@ -162,13 +162,16 @@ CREATE INDEX IF NOT EXISTS idx_equipment_client ON equipment(client_id);
 `;
 
 const seedDefaults = `
+-- Уникальность по имени типа заявки
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ticket_types_name ON ticket_types(name);
+
 -- Типы заявок по умолчанию
 INSERT INTO ticket_types (name, color, statuses, auto_statuses, sort_order) VALUES
   ('Гарантия', '#16A34A', '["new", "in_progress", "waiting_parts", "waiting_client", "done", "cancelled"]', '{"created": "new", "assigned": "in_progress"}', 1),
   ('Ремонт', '#EA580C', '["new", "in_progress", "waiting_parts", "waiting_client", "done", "cancelled"]', '{"created": "new", "assigned": "in_progress"}', 2),
   ('ТО', '#2563EB', '["new", "in_progress", "done", "cancelled"]', '{"created": "new", "assigned": "in_progress"}', 3),
   ('Запчасти', '#7C3AED', '["new", "in_progress", "waiting_parts", "done", "cancelled"]', '{"created": "new", "assigned": "in_progress"}', 4)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (name) DO NOTHING;
 `;
 
 async function migrate() {
