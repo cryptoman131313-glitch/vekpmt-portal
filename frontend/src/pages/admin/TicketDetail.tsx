@@ -217,7 +217,7 @@ export default function TicketDetail() {
                   <div className={`rounded-lg px-3 py-2 text-sm relative group
                     ${channel === 'service' ? 'bg-yellow-50 border border-yellow-100' : channel === 'notes' ? 'bg-purple-50 border border-purple-100' : 'bg-[#F4F4F5]'}`}>
                     {m.content}
-                    {m.sender_type === 'user' && m.sender_id === user?.id && (user?.role === 'director' || user?.permissions?.can_edit_messages) && (
+                    {m.sender_type === 'user' && m.sender_id === user?.id && (
                       <div className="absolute right-1 top-1 hidden group-hover:flex gap-1">
                         <button onClick={() => { setEditId(m.id); setEditText(m.content) }}
                           className="p-1 rounded hover:bg-white/60 text-[#71717A]"><Pencil size={12} /></button>
