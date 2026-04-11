@@ -70,7 +70,14 @@ export default function TicketDetail() {
       .catch(() => {})
   }
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  const prevChannelRef = useRef(channel)
+  useEffect(() => {
+    // Скроллим вниз только при отправке нового сообщения, не при смене канала
+    if (prevChannelRef.current === channel && messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+    prevChannelRef.current = channel
+  }, [messages])
 
   const handleStatusChange = async (newStatus: string) => {
     setStatus(newStatus)
