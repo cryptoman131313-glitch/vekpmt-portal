@@ -85,8 +85,11 @@ router.post('/client/login', async (req, res) => {
   }
   try {
     const { rows } = await pool.query(
-      'SELECT * FROM clients WHERE contact_email = $1 AND status = $2',
-      [email.toLowerCase().trim(), 'active']
+      `SELECT cu.*, c.company_name, c.contact_phone, c.status
+       FROM client_users cu
+       JOIN clients c ON c.id = cu.client_id
+       WHERE cu.email = $1 AND cu.is_active = true AND c.status = 'active'`,
+      [email.toLowerCase().trim()]
     );
     const client = rows[0];
     if (!client) return res.status(401).json({ error: 'Неверный email или пароль' });
@@ -95,7 +98,7 @@ router.post('/client/login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Неверный email или пароль' });
 
     const token = jwt.sign(
-      { id: client.id, email: client.contact_email, company: client.company_name, type: 'client' },
+      { id: client.client_id, email: client.email, company: client.company_name, type: 'client' },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -103,10 +106,10 @@ router.post('/client/login', async (req, res) => {
     res.json({
       token,
       client: {
-        id: client.id,
+        id: client.client_id,
         company_name: client.company_name,
-        contact_name: client.contact_name,
-        contact_email: client.contact_email,
+        contact_name: client.name,
+        contact_email: client.email,
         contact_phone: client.contact_phone,
       }
     });
