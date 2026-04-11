@@ -27,8 +27,10 @@ app.use(helmet({
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',').map(s => s.trim());
 app.use(cors({
   origin: (origin, cb) => {
-    // разрешаем запросы без origin (мобильные, Postman) и из разрешённых доменов
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    // В продакшне разрешаем railway.app домены
+    if (origin.endsWith('.railway.app') || origin.endsWith('.up.railway.app')) return cb(null, true);
     cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
