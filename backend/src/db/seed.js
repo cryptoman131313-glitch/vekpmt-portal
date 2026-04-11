@@ -101,6 +101,42 @@ async function seed() {
       'passport'
     ]);
 
+    // Типы документов
+    const documentTypes = [
+      { id: 'passport', name: 'Паспорт оборудования' },
+      { id: 'manual', name: 'Руководство по эксплуатации' },
+      { id: 'maintenance', name: 'Регламент ТО' },
+      { id: 'warranty', name: 'Гарантийный талон' },
+      { id: 'certificate', name: 'Сертификат соответствия' },
+      { id: 'contract', name: 'Договор' },
+      { id: 'act', name: 'Акт выполненных работ' },
+      { id: 'scheme', name: 'Схема / Чертёж' },
+      { id: 'photo', name: 'Фотографии' },
+      { id: 'general', name: 'Прочее' },
+    ];
+    await client.query(`
+      INSERT INTO system_settings (key, value) VALUES ($1, $2)
+      ON CONFLICT (key) DO UPDATE SET value = $2
+    `, ['document_types', JSON.stringify(documentTypes)]);
+
+    // Характеристики оборудования
+    const equipmentFields = [
+      { id: 'purchase_date', name: 'Дата покупки', type: 'date' },
+      { id: 'warranty_until', name: 'Гарантия до', type: 'date' },
+      { id: 'installation_date', name: 'Дата установки', type: 'date' },
+      { id: 'location', name: 'Место установки', type: 'text' },
+      { id: 'condition', name: 'Состояние', type: 'text' },
+      { id: 'power', name: 'Мощность (кВт)', type: 'text' },
+      { id: 'weight', name: 'Вес (кг)', type: 'text' },
+      { id: 'dimensions', name: 'Габариты (мм)', type: 'text' },
+      { id: 'voltage', name: 'Напряжение питания', type: 'text' },
+      { id: 'performance', name: 'Производительность', type: 'text' },
+    ];
+    await client.query(`
+      INSERT INTO system_settings (key, value) VALUES ($1, $2)
+      ON CONFLICT (key) DO UPDATE SET value = $2
+    `, ['equipment_fields', JSON.stringify(equipmentFields)]);
+
     console.log('=== Тестовые данные созданы ===');
     console.log('Руководитель: admin@vekpmt.ru / Admin1234');
     console.log('Менеджер:     manager@vekpmt.ru / Admin1234');

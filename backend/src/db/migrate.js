@@ -166,6 +166,13 @@ CREATE TABLE IF NOT EXISTS ticket_history (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Системные настройки (типы документов, характеристики оборудования и др.)
+CREATE TABLE IF NOT EXISTS system_settings (
+  key VARCHAR(100) PRIMARY KEY,
+  value JSONB NOT NULL DEFAULT '[]',
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Доп. колонки (добавлены позже, идемпотентно)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS show_avatar BOOLEAN DEFAULT false;
