@@ -166,6 +166,10 @@ CREATE TABLE IF NOT EXISTS ticket_history (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Доп. колонки (добавлены позже, идемпотентно)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS show_avatar BOOLEAN DEFAULT false;
+
 -- Индексы
 CREATE INDEX IF NOT EXISTS idx_tickets_client ON tickets(client_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
