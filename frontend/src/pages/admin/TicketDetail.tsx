@@ -48,8 +48,12 @@ export default function TicketDetail() {
   useEffect(() => {
     api.get(`/tickets/${id}`).then(r => { setTicket(r.data); setStatus(r.data.status) }).catch(() => navigate('/admin/tickets'))
     loadAttachments()
-    loadHistory()
   }, [id])
+
+  // История грузится отдельно — ждём пока загрузится user из контекста
+  useEffect(() => {
+    if (id && user?.role === 'director') loadHistory()
+  }, [id, user?.role])
 
   useEffect(() => {
     if (!id) return
@@ -112,7 +116,6 @@ export default function TicketDetail() {
   }
 
   const loadHistory = () => {
-    if (user?.role !== 'director') return
     api.get(`/tickets/${id}/history`).then(r => {
       setHistory(r.data.history || [])
       setHistoryStats(r.data.stats || null)
