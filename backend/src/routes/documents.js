@@ -116,7 +116,12 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 });
 
 // GET /api/documents/download/:id — скачать файл (сотрудник)
-router.get('/download/:id', authMiddleware, async (req, res) => {
+router.get('/download/:id', (req, res, next) => {
+  if (req.query.token && !req.headers.authorization) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
+  next();
+}, authMiddleware, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM documents WHERE id = $1', [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Не найдено' });
@@ -128,7 +133,12 @@ router.get('/download/:id', authMiddleware, async (req, res) => {
 });
 
 // GET /api/documents/client-download/:id — скачать файл (клиент)
-router.get('/client-download/:id', clientAuth, async (req, res) => {
+router.get('/client-download/:id', (req, res, next) => {
+  if (req.query.token && !req.headers.authorization) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
+  next();
+}, clientAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT * FROM documents WHERE id = $1 AND client_id = $2',

@@ -115,7 +115,7 @@ function DocItem({ doc, getTypeName }: { doc: Document; getTypeName: (id: string
         <div className="text-sm font-medium text-[#18181B]">{doc.title}</div>
         <div className="text-xs text-[#A1A1AA]">{getTypeName(doc.doc_type)} · {formatSize(doc.filesize)}</div>
       </div>
-      <a href={`/api/documents/client-download/${doc.id}`}
+      <a href={`/api/documents/client-download/${doc.id}?token=${localStorage.getItem('token')}`}
         className="btn btn-secondary py-1.5 px-3 text-xs gap-1.5 flex-shrink-0">
         <Download size={13} /> Скачать
       </a>

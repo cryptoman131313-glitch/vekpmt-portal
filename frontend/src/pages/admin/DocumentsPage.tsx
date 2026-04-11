@@ -257,7 +257,7 @@ function DocRow({ doc, clientId, getTypeName, onDelete }: {
         <span className="text-xs text-[#A1A1AA] ml-2">{formatSize(doc.filesize)}</span>
       </div>
       <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-all">
-        <a href={`/api/documents/download/${doc.id}`} target="_blank"
+        <a href={`/api/documents/download/${doc.id}?token=${localStorage.getItem('token')}`} target="_blank"
           className="btn btn-secondary p-1.5"><Download size={13} /></a>
         <button onClick={() => onDelete(doc.id, clientId)}
           className="btn btn-danger p-1.5"><Trash2 size={13} /></button>

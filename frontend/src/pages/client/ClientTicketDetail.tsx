@@ -174,7 +174,7 @@ export default function ClientTicketDetail() {
                     <div className="text-xs font-medium text-[#18181B] truncate">{a.filename}</div>
                     <div className="text-[10px] text-[#A1A1AA]">{a.uploaded_by_name} · {(a.filesize / 1024).toFixed(0)} КБ</div>
                   </div>
-                  <a href={a.filepath} target="_blank" rel="noreferrer"
+                  <a href={`${a.filepath}?token=${localStorage.getItem('token')}`} target="_blank" rel="noreferrer"
                     className="text-[#003399] hover:text-[#0044cc] opacity-0 group-hover:opacity-100 transition-opacity">
                     <Download size={14} />
                   </a>
