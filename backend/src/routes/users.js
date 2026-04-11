@@ -176,16 +176,16 @@ router.post('/ticket-types', authMiddleware, requireRole('director'), async (req
 
 // PATCH /api/users/ticket-types/:id — обновить тип заявки
 router.patch('/ticket-types/:id', authMiddleware, requireRole('director'), async (req, res) => {
-  const { name, color, statuses } = req.body;
+  const { name, color, statuses, auto_statuses } = req.body;
   try {
     const { rows } = await pool.query(
       `UPDATE ticket_types SET
         name = COALESCE($1, name),
         color = COALESCE($2, color),
         statuses = COALESCE($3, statuses),
-        updated_at = NOW()
-       WHERE id = $4 RETURNING *`,
-      [name, color, statuses ? JSON.stringify(statuses) : null, req.params.id]
+        auto_statuses = COALESCE($4, auto_statuses)
+       WHERE id = $5 RETURNING *`,
+      [name, color, statuses ? JSON.stringify(statuses) : null, auto_statuses ? JSON.stringify(auto_statuses) : null, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Тип не найден' });
     res.json(rows[0]);
