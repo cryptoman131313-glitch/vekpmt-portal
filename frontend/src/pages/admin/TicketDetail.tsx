@@ -194,7 +194,7 @@ export default function TicketDetail() {
         </div>
 
         {/* Messages */}
-        <div className="p-4 overflow-y-auto space-y-4" style={{ minHeight: 200, maxHeight: 'calc(100vh - 520px)' }}>
+        <div className="p-4 overflow-y-auto space-y-4" style={{ height: 'calc(100vh - 520px)', minHeight: 300 }}>
           {messages.length === 0 && (
             <div className="text-center text-[#A1A1AA] py-8 text-sm">Сообщений пока нет</div>
           )}
@@ -244,7 +244,7 @@ export default function TicketDetail() {
 
         {/* History tab */}
         {channel === 'history' && (
-          <div className="p-4 space-y-4" style={{ minHeight: 200, maxHeight: 'calc(100vh - 520px)', overflowY: 'auto' }}>
+          <div className="p-4 space-y-4 overflow-y-auto" style={{ height: 'calc(100vh - 520px)', minHeight: 300 }}>
             {/* Stats */}
             {historyStats && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
