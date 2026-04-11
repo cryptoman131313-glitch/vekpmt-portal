@@ -17,6 +17,9 @@ const documentRoutes = require('./routes/documents');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Доверяем Railway proxy
+app.set('trust proxy', 1);
+
 // Security headers
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // разрешаем /uploads из фронтенда
