@@ -201,6 +201,21 @@ async function seed() {
       ON CONFLICT (key) DO UPDATE SET value = $2
     `, ['equipment_fields', JSON.stringify(equipmentFields)]);
 
+    // Марки оборудования
+    const equipmentBrands = [
+      { id: 'et', name: 'Эффективная Техника' },
+      { id: 'ulma', name: 'ULMA Packaging' },
+      { id: 'bosch', name: 'Bosch Packaging' },
+      { id: 'multivac', name: 'MULTIVAC' },
+      { id: 'ishida', name: 'Ishida' },
+      { id: 'rovema', name: 'ROVEMA' },
+      { id: 'pneumatic', name: 'Pneumatic Scale Angelus' },
+    ];
+    await client.query(`
+      INSERT INTO system_settings (key, value) VALUES ($1, $2)
+      ON CONFLICT (key) DO UPDATE SET value = $2
+    `, ['equipment_brands', JSON.stringify(equipmentBrands)]);
+
     console.log('=== Тестовые данные созданы ===');
     console.log('Руководитель: admin@vekpmt.ru / Admin1234');
     console.log('Менеджер:     manager@vekpmt.ru / Admin1234');

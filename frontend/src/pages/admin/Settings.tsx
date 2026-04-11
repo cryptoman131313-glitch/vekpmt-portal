@@ -117,7 +117,7 @@ export default function Settings() {
       </div>
 
       <div className="flex gap-1 mb-4 border-b border-[#E4E4E7]">
-        {[{ key: 'users', label: 'Сотрудники' }, { key: 'types', label: 'Типы заявок' }, { key: 'equipment_fields', label: 'Характеристики оборудования' }, { key: 'doc_types', label: 'Типы документов' }].map(t => (
+        {[{ key: 'users', label: 'Сотрудники' }, { key: 'types', label: 'Типы заявок' }, { key: 'equipment_fields', label: 'Характеристики оборудования' }, { key: 'doc_types', label: 'Типы документов' }, { key: 'brands', label: 'Марки оборудования' }].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${tab === t.key ? 'border-[#CC0033] text-[#CC0033]' : 'border-transparent text-[#71717A] hover:text-[#18181B]'}`}>
             {t.label}
@@ -167,6 +167,11 @@ export default function Settings() {
       {/* Doc types tab */}
       <div className={tab !== 'doc_types' ? 'hidden' : ''}>
         <SimpleListConstructor settingKey="document_types" label="тип документа" />
+      </div>
+
+      {/* Brands tab */}
+      <div className={tab !== 'brands' ? 'hidden' : ''}>
+        <SimpleListConstructor settingKey="equipment_brands" label="марку" />
       </div>
 
       {/* Employee Drawer */}

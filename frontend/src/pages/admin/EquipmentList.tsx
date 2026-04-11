@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/client'
-import { getCache, setCache, invalidateCache } from '../../api/cache'
+import { getCache, setCache } from '../../api/cache'
 import toast from 'react-hot-toast'
-import { Search, Plus, BookOpen, Users, ChevronDown, ChevronRight } from 'lucide-react'
+import { Search, Plus, BookOpen, Users, ChevronDown, ChevronRight, Factory } from 'lucide-react'
 import { companyInitials } from '../../utils/helpers'
 
 interface Equipment {
@@ -11,6 +11,7 @@ interface Equipment {
   company_name: string; client_id: string | null; tickets_count: string
 }
 interface Client { id: string; company_name: string }
+interface Brand { id: string; name: string }
 
 const emptyForm = { client_id: '', model: '', manufacturer: '', serial_number: '', notes: '' }
 
@@ -19,8 +20,10 @@ export default function EquipmentList() {
   const [tab, setTab] = useState<'catalog' | 'clients'>('catalog')
   const [items, setItems] = useState<Equipment[]>([])
   const [clients, setClients] = useState<Client[]>([])
+  const [brands, setBrands] = useState<Brand[]>([])
   const [search, setSearch] = useState('')
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set())
+  const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set())
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [loading, setLoading] = useState(false)
@@ -36,6 +39,10 @@ export default function EquipmentList() {
     const cachedClients = getCache('clients')
     if (cachedClients) setClients(cachedClients)
     api.get('/clients').then(r => { setCache('clients', r.data); setClients(r.data) }).catch(() => {})
+
+    const cachedBrands = getCache('equipment_brands')
+    if (cachedBrands) setBrands(cachedBrands)
+    api.get('/settings/equipment_brands').then(r => { setCache('equipment_brands', r.data || []); setBrands(r.data || []) }).catch(() => {})
   }, [])
 
   const set = (field: string, value: string) => setForm(f => ({ ...f, [field]: value }))
@@ -54,47 +61,55 @@ export default function EquipmentList() {
     } finally { setLoading(false) }
   }
 
+  const toggleBrand = (brand: string) => {
+    setExpandedBrands(prev => {
+      const next = new Set(prev)
+      next.has(brand) ? next.delete(brand) : next.add(brand)
+      return next
+    })
+  }
+
   const toggleClient = (clientId: string) => {
-    setExpanded(prev => {
+    setExpandedClients(prev => {
       const next = new Set(prev)
       next.has(clientId) ? next.delete(clientId) : next.add(clientId)
       return next
     })
   }
 
-  // Каталог — только без клиента
+  // Каталог — без клиента
   const catalog = items.filter(e => !e.client_id)
-  // Оборудование клиентов — только привязанное, группируем по клиенту
   const clientEq = items.filter(e => !!e.client_id)
 
-  // Группировка по client_id
-  const grouped: Record<string, Equipment[]> = {}
+  // Группировка каталога по производителю
+  const catalogGrouped: Record<string, Equipment[]> = {}
+  catalog.forEach(eq => {
+    const key = eq.manufacturer || 'Без производителя'
+    if (!catalogGrouped[key]) catalogGrouped[key] = []
+    catalogGrouped[key].push(eq)
+  })
+
+  // Группировка клиентского по client_id
+  const clientGrouped: Record<string, Equipment[]> = {}
   clientEq.forEach(eq => {
     const key = eq.client_id!
-    if (!grouped[key]) grouped[key] = []
-    grouped[key].push(eq)
+    if (!clientGrouped[key]) clientGrouped[key] = []
+    clientGrouped[key].push(eq)
   })
 
-  // Поиск для каталога
-  const filteredCatalog = catalog.filter(eq => {
-    if (!search) return true
-    const s = search.toLowerCase()
-    return eq.model.toLowerCase().includes(s)
-      || (eq.manufacturer || '').toLowerCase().includes(s)
-      || (eq.serial_number || '').toLowerCase().includes(s)
-  })
+  const s = search.toLowerCase()
 
-  // Поиск для клиентского оборудования (фильтруем по имени клиента или оборудованию)
-  const filteredGroups = Object.entries(grouped).filter(([, eqs]) => {
+  const filteredCatalogGroups = Object.entries(catalogGrouped).filter(([brand, eqs]) => {
     if (!search) return true
-    const s = search.toLowerCase()
-    const clientMatch = (eqs[0].company_name || '').toLowerCase().includes(s)
-    const eqMatch = eqs.some(eq =>
-      eq.model.toLowerCase().includes(s) ||
-      (eq.manufacturer || '').toLowerCase().includes(s) ||
-      (eq.serial_number || '').toLowerCase().includes(s)
+    return brand.toLowerCase().includes(s) || eqs.some(eq =>
+      eq.model.toLowerCase().includes(s) || (eq.serial_number || '').toLowerCase().includes(s)
     )
-    return clientMatch || eqMatch
+  })
+
+  const filteredClientGroups = Object.entries(clientGrouped).filter(([, eqs]) => {
+    if (!search) return true
+    return (eqs[0].company_name || '').toLowerCase().includes(s) ||
+      eqs.some(eq => eq.model.toLowerCase().includes(s) || (eq.manufacturer || '').toLowerCase().includes(s) || (eq.serial_number || '').toLowerCase().includes(s))
   })
 
   return (
@@ -109,11 +124,9 @@ export default function EquipmentList() {
       {/* Tabs */}
       <div className="flex gap-1 mb-4 border-b border-[#E4E4E7]">
         <TabBtn active={tab === 'catalog'} icon={<BookOpen size={15} />}
-          label="Каталог" count={catalog.length}
-          onClick={() => setTab('catalog')} />
+          label="Каталог" count={catalog.length} onClick={() => setTab('catalog')} />
         <TabBtn active={tab === 'clients'} icon={<Users size={15} />}
-          label="Оборудование клиентов" count={clientEq.length}
-          onClick={() => setTab('clients')} />
+          label="Оборудование клиентов" count={clientEq.length} onClick={() => setTab('clients')} />
       </div>
 
       {/* Search */}
@@ -125,58 +138,82 @@ export default function EquipmentList() {
 
       {/* ── КАТАЛОГ ── */}
       {tab === 'catalog' && (
-        <div className="card">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[#E4E4E7] bg-[#FAFAFA]">
-                {['Модель', 'Производитель', 'Серийный №', 'Заявок'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left font-semibold text-[#71717A]">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filteredCatalog.length === 0 && (
-                <tr><td colSpan={4} className="px-4 py-10 text-center text-[#71717A]">Каталог пуст</td></tr>
-              )}
-              {filteredCatalog.map(eq => (
-                <tr key={eq.id} onClick={() => navigate(`/admin/equipment/${eq.id}`)}
-                  className="border-b border-[#F4F4F5] hover:bg-[#FAFAFA] cursor-pointer transition-colors">
-                  <td className="px-4 py-3 font-semibold">{eq.model}</td>
-                  <td className="px-4 py-3 text-[#71717A]">{eq.manufacturer || '—'}</td>
-                  <td className="px-4 py-3 text-[#71717A]">{eq.serial_number || '—'}</td>
-                  <td className="px-4 py-3 font-bold">{eq.tickets_count}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-2">
+          {filteredCatalogGroups.length === 0 && (
+            <div className="card py-10 text-center text-[#71717A] text-sm">Каталог пуст</div>
+          )}
+          {filteredCatalogGroups.map(([brand, eqs]) => {
+            const isOpen = expandedBrands.has(brand)
+            const visibleEqs = search
+              ? eqs.filter(eq => eq.model.toLowerCase().includes(s) || (eq.serial_number || '').toLowerCase().includes(s) || brand.toLowerCase().includes(s))
+              : eqs
+            return (
+              <div key={brand} className="card overflow-hidden">
+                {/* Заголовок марки */}
+                <div className="flex items-center gap-3 px-4 py-3.5 cursor-pointer select-none hover:bg-[#FAFAFA] transition-colors"
+                  onClick={() => toggleBrand(brand)}>
+                  <div className="text-[#A1A1AA]">
+                    {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  </div>
+                  <div className="w-9 h-9 rounded-full bg-[#CC0033]/10 flex items-center justify-center flex-shrink-0">
+                    <Factory size={16} className="text-[#CC0033]" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-bold text-[#18181B]">{brand}</div>
+                    <div className="text-xs text-[#A1A1AA]">{eqs.length} {eqs.length === 1 ? 'модель' : eqs.length < 5 ? 'модели' : 'моделей'}</div>
+                  </div>
+                </div>
+
+                {/* Модели марки */}
+                {isOpen && (
+                  <div className="border-t border-[#F4F4F5]">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-[#E4E4E7] bg-[#FAFAFA]">
+                          {['Модель', 'Серийный №', 'Заявок'].map(h => (
+                            <th key={h} className="px-5 py-2.5 text-left font-semibold text-[#71717A]">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleEqs.map(eq => (
+                          <tr key={eq.id} onClick={() => navigate(`/admin/equipment/${eq.id}`)}
+                            className="border-b border-[#F4F4F5] last:border-b-0 hover:bg-[#FAFAFA] cursor-pointer transition-colors">
+                            <td className="px-5 py-2.5 font-semibold text-[#18181B]">{eq.model}</td>
+                            <td className="px-5 py-2.5 text-[#71717A]">{eq.serial_number || '—'}</td>
+                            <td className="px-5 py-2.5 font-bold text-[#CC0033]">{eq.tickets_count}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
       {/* ── ОБОРУДОВАНИЕ КЛИЕНТОВ ── */}
       {tab === 'clients' && (
         <div className="space-y-2">
-          {filteredGroups.length === 0 && (
+          {filteredClientGroups.length === 0 && (
             <div className="card py-10 text-center text-[#71717A] text-sm">Нет оборудования клиентов</div>
           )}
-          {filteredGroups.map(([clientId, eqs]) => {
-            const isOpen = expanded.has(clientId)
+          {filteredClientGroups.map(([clientId, eqs]) => {
+            const isOpen = expandedClients.has(clientId)
             const companyName = eqs[0].company_name || 'Клиент'
-            // Фильтруем оборудование внутри клиента по поиску
             const visibleEqs = search
               ? eqs.filter(eq =>
-                  eq.model.toLowerCase().includes(search.toLowerCase()) ||
-                  (eq.manufacturer || '').toLowerCase().includes(search.toLowerCase()) ||
-                  (eq.serial_number || '').toLowerCase().includes(search.toLowerCase()) ||
-                  companyName.toLowerCase().includes(search.toLowerCase())
-                )
+                  eq.model.toLowerCase().includes(s) ||
+                  (eq.manufacturer || '').toLowerCase().includes(s) ||
+                  (eq.serial_number || '').toLowerCase().includes(s) ||
+                  companyName.toLowerCase().includes(s))
               : eqs
             return (
               <div key={clientId} className="card overflow-hidden">
-                {/* Заголовок клиента */}
-                <div
-                  className="flex items-center gap-3 px-4 py-3.5 cursor-pointer select-none hover:bg-[#FAFAFA] transition-colors"
-                  onClick={() => toggleClient(clientId)}
-                >
+                <div className="flex items-center gap-3 px-4 py-3.5 cursor-pointer select-none hover:bg-[#FAFAFA] transition-colors"
+                  onClick={() => toggleClient(clientId)}>
                   <div className="text-[#A1A1AA]">
                     {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </div>
@@ -188,8 +225,6 @@ export default function EquipmentList() {
                     <div className="text-xs text-[#A1A1AA]">{eqs.length} ед. оборудования</div>
                   </div>
                 </div>
-
-                {/* Оборудование клиента */}
                 {isOpen && (
                   <div className="border-t border-[#F4F4F5]">
                     <table className="w-full text-sm">
@@ -234,20 +269,25 @@ export default function EquipmentList() {
                   {clients.map(c => <option key={c.id} value={c.id}>{c.company_name}</option>)}
                 </select>
               </F>
+              <F label="Производитель (марка)">
+                <select className="form-control" value={form.manufacturer} onChange={e => set('manufacturer', e.target.value)}>
+                  <option value="">— выберите марку —</option>
+                  {brands.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+                  <option value="__other__">Другой...</option>
+                </select>
+                {form.manufacturer === '__other__' && (
+                  <input className="form-control mt-2" placeholder="Введите производителя"
+                    onChange={e => set('manufacturer', e.target.value)} />
+                )}
+              </F>
               <F label="Модель" required>
                 <input className="form-control" placeholder="Например: A-160"
                   value={form.model} onChange={e => set('model', e.target.value)} />
               </F>
-              <div className="grid grid-cols-2 gap-3">
-                <F label="Производитель">
-                  <input className="form-control" placeholder="Например: Filpack"
-                    value={form.manufacturer} onChange={e => set('manufacturer', e.target.value)} />
-                </F>
-                <F label="Серийный номер">
-                  <input className="form-control" placeholder="SN-00001"
-                    value={form.serial_number} onChange={e => set('serial_number', e.target.value)} />
-                </F>
-              </div>
+              <F label="Серийный номер">
+                <input className="form-control" placeholder="SN-00001"
+                  value={form.serial_number} onChange={e => set('serial_number', e.target.value)} />
+              </F>
               <F label="Примечания">
                 <textarea className="form-control" rows={2} placeholder="Дополнительная информация..."
                   value={form.notes} onChange={e => set('notes', e.target.value)} />
