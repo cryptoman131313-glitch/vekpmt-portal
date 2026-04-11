@@ -155,20 +155,15 @@ async function seed() {
     await client.query(`INSERT INTO messages (ticket_id, sender_type, sender_id, channel, content) VALUES ($1, 'user', $2, 'service', $3)`,
       [ticketId, engineerId, 'Понял, возьму запасной датчик. Планирую выезд в пятницу.']);
 
-    // Документ
-    await client.query(`
-      INSERT INTO documents (client_id, equipment_id, title, filename, filepath, filesize, doc_type, uploaded_by)
-      SELECT $1, $2, $3, $4, $5, $6, $7, u.id
-      FROM users u WHERE u.role = 'director' LIMIT 1
-    `, [
-      clientId,
-      equipId,
-      'Паспорт оборудования A-160',
-      'passport_a160.pdf',
-      '/uploads/documents/passport_a160.pdf',
-      245760,
-      'passport'
-    ]);
+    // Документ — только если ещё нет
+    const existingDoc = await client.query(`SELECT id FROM documents WHERE client_id = $1 AND filename = $2 LIMIT 1`, [clientId, 'passport_a160.pdf']);
+    if (existingDoc.rows.length === 0) {
+      await client.query(`
+        INSERT INTO documents (client_id, equipment_id, title, filename, filepath, filesize, doc_type, uploaded_by)
+        SELECT $1, $2, $3, $4, $5, $6, $7, u.id
+        FROM users u WHERE u.role = 'director' LIMIT 1
+      `, [clientId, equipId, 'Паспорт оборудования A-160', 'passport_a160.pdf', '/uploads/documents/passport_a160.pdf', 245760, 'passport']);
+    }
 
     // Типы документов
     const documentTypes = [

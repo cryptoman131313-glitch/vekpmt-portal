@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/client'
+import { getCache, setCache, invalidateCache } from '../../api/cache'
 import toast from 'react-hot-toast'
 import { Search, Plus, BookOpen, Users, ChevronDown, ChevronRight } from 'lucide-react'
 import { companyInitials } from '../../utils/helpers'
@@ -24,12 +25,17 @@ export default function EquipmentList() {
   const [form, setForm] = useState(emptyForm)
   const [loading, setLoading] = useState(false)
 
-  const load = () =>
-    api.get('/equipment').then(r => setItems(r.data)).catch(() => {})
+  const load = () => {
+    const cached = getCache('equipment')
+    if (cached) setItems(cached)
+    api.get('/equipment').then(r => { setCache('equipment', r.data); setItems(r.data) }).catch(() => {})
+  }
 
   useEffect(() => {
     load()
-    api.get('/clients').then(r => setClients(r.data)).catch(() => {})
+    const cachedClients = getCache('clients')
+    if (cachedClients) setClients(cachedClients)
+    api.get('/clients').then(r => { setCache('clients', r.data); setClients(r.data) }).catch(() => {})
   }, [])
 
   const set = (field: string, value: string) => setForm(f => ({ ...f, [field]: value }))

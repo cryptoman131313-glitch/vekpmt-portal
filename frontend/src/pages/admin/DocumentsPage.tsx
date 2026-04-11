@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import api from '../../api/client'
+import { getCache, setCache } from '../../api/cache'
 import toast from 'react-hot-toast'
 import { ChevronDown, ChevronRight, Plus, Trash2, Download, FileText, Wrench } from 'lucide-react'
 import { companyInitials } from '../../utils/helpers'
@@ -31,16 +32,25 @@ export default function DocumentsPage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    api.get('/documents/clients').then(r => setClients(r.data)).catch(() => {})
-    api.get('/settings/document_types').then(r => setDocTypes(r.data || [])).catch(() => {})
+    const cachedClients = getCache('doc_clients')
+    if (cachedClients) setClients(cachedClients)
+    api.get('/documents/clients').then(r => { setCache('doc_clients', r.data); setClients(r.data) }).catch(() => {})
+
+    const cachedTypes = getCache('document_types')
+    if (cachedTypes) setDocTypes(cachedTypes)
+    api.get('/settings/document_types').then(r => { setCache('document_types', r.data); setDocTypes(r.data || []) }).catch(() => {})
   }, [])
 
   const loadClient = async (clientId: string) => {
+    const cachedDocs = getCache(`docs_${clientId}`)
+    if (cachedDocs) setDocs(prev => ({ ...prev, [clientId]: cachedDocs }))
+
     const [eqRes, docsRes] = await Promise.all([
       equipment[clientId] ? Promise.resolve({ data: equipment[clientId] }) : api.get(`/clients/${clientId}/equipment`),
       api.get(`/documents/client/${clientId}`)
     ])
     setEquipment(e => ({ ...e, [clientId]: eqRes.data }))
+    setCache(`docs_${clientId}`, docsRes.data)
     setDocs(prev => ({ ...prev, [clientId]: docsRes.data }))
   }
 
