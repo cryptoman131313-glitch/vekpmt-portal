@@ -142,7 +142,9 @@ export default function TicketDetail() {
           <h1 className="text-2xl font-bold text-[#18181B]">Заявка #{ticket.id}</h1>
         </div>
         <div className="flex items-center gap-3">
-          <span className={`badge ${statusBadgeClass(status)}`}>{statusLabel(status)}</span>
+          <span className={`badge ${statusBadgeClass(status)}`} style={{ fontSize: 16, padding: '6px 16px', gap: 8, borderRadius: 8 }}>
+            {statusLabel(status)}
+          </span>
           <select className="form-control" style={{ width: 'auto', minWidth: 200 }}
             value={status} onChange={e => handleStatusChange(e.target.value)}>
             {(ticket.type_statuses?.length > 0 ? ticket.type_statuses : STATUS_OPTIONS).map((o: any) => (
