@@ -4,6 +4,12 @@ const pool = require('./pool');
 async function seed() {
   const client = await pool.connect();
   try {
+    // Удаляем дублирующиеся заявки (оставляем только первую)
+    await client.query(`
+      DELETE FROM tickets WHERE id NOT IN (
+        SELECT MIN(id) FROM tickets GROUP BY client_id, description
+      )
+    `);
     const hash = await bcrypt.hash('Admin1234', 10);
 
     // Администратор / Руководитель
