@@ -78,39 +78,35 @@ async function seed() {
     const typeRes = await client.query(`SELECT id FROM ticket_types LIMIT 1`);
     const typeId = typeRes.rows[0]?.id || null;
 
-    // Заявка
-    const ticketRes = await client.query(`
+    // Заявка — создаём только если ещё нет
+    const existingTicket = await client.query(
+      `SELECT id FROM tickets WHERE client_id = $1 AND description = $2 LIMIT 1`,
+      [clientId, 'Не срабатывает датчик подачи плёнки. Машина останавливается на 3-м цикле упаковки.']
+    );
+    const ticketId = existingTicket.rows[0]?.id || (await client.query(`
       INSERT INTO tickets (client_id, equipment_id, type_id, status, description, assigned_to, created_by_client)
       VALUES ($1, $2, $3, 'in_progress', $4, $5, false)
       RETURNING id
-    `, [
-      clientId,
-      equipId,
-      typeId,
-      'Не срабатывает датчик подачи плёнки. Машина останавливается на 3-м цикле упаковки.',
-      managerId
-    ]);
-    const ticketId = ticketRes.rows[0].id;
+    `, [clientId, equipId, typeId, 'Не срабатывает датчик подачи плёнки. Машина останавливается на 3-м цикле упаковки.', managerId])).rows[0].id;
 
-    // Сообщение от клиента в обращении
-    const clientUserRes = await client.query(`SELECT id FROM client_users WHERE email = $1`, ['client@test.ru']);
-    const clientUserId = clientUserRes.rows[0].id;
-    await client.query(`
-      INSERT INTO messages (ticket_id, sender_type, sender_id, channel, content)
-      VALUES ($1, 'client', $2, 'appeal', $3)
-    `, [ticketId, clientUserId, 'Добрый день! Машина останавливается на 3-м цикле упаковки, на дисплее мигает ошибка E-07. Пробовали перезапускать — не помогает.']);
-
-    // Ответ менеджера в обращении
-    await client.query(`
-      INSERT INTO messages (ticket_id, sender_type, sender_id, channel, content)
-      VALUES ($1, 'user', $2, 'appeal', $3)
-    `, [ticketId, managerId, 'Добрый день, Иван Иванович! Приняли заявку в работу. Инженер свяжется с вами в течение рабочего дня для уточнения деталей.']);
-
-    // Служебная заметка
-    await client.query(`
-      INSERT INTO messages (ticket_id, sender_type, sender_id, channel, content)
-      VALUES ($1, 'user', $2, 'service', $3)
-    `, [ticketId, managerId, 'Ошибка E-07 — сбой датчика подачи плёнки. Скорее всего загрязнение или смещение. Нужно взять датчик FT-12 в запас.']);
+    // Сообщения — только если их ещё нет
+    const existingMsgs = await client.query(`SELECT id FROM messages WHERE ticket_id = $1 LIMIT 1`, [ticketId]);
+    if (existingMsgs.rows.length === 0) {
+      const clientUserRes = await client.query(`SELECT id FROM client_users WHERE email = $1`, ['client@test.ru']);
+      const clientUserId = clientUserRes.rows[0].id;
+      await client.query(`
+        INSERT INTO messages (ticket_id, sender_type, sender_id, channel, content)
+        VALUES ($1, 'client', $2, 'appeal', $3)
+      `, [ticketId, clientUserId, 'Добрый день! Машина останавливается на 3-м цикле упаковки, на дисплее мигает ошибка E-07. Пробовали перезапускать — не помогает.']);
+      await client.query(`
+        INSERT INTO messages (ticket_id, sender_type, sender_id, channel, content)
+        VALUES ($1, 'user', $2, 'appeal', $3)
+      `, [ticketId, managerId, 'Добрый день, Иван Иванович! Приняли заявку в работу. Инженер свяжется с вами в течение рабочего дня для уточнения деталей.']);
+      await client.query(`
+        INSERT INTO messages (ticket_id, sender_type, sender_id, channel, content)
+        VALUES ($1, 'user', $2, 'service', $3)
+      `, [ticketId, managerId, 'Ошибка E-07 — сбой датчика подачи плёнки. Скорее всего загрязнение или смещение. Нужно взять датчик FT-12 в запас.']);
+    }
 
     // Документ
     await client.query(`
