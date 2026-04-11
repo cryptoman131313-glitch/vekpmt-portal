@@ -81,6 +81,22 @@ router.patch('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// GET /api/equipment/client/:id — одна единица оборудования клиента (ЛК)
+router.get('/client/:id', clientAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT e.*,
+        (SELECT COUNT(*) FROM tickets t WHERE t.equipment_id = e.id) as tickets_count
+       FROM equipment e WHERE e.id = $1 AND e.client_id = $2`,
+      [req.params.id, req.client.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Не найдено' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 // GET /api/equipment/client/list — оборудование клиента (ЛК)
 router.get('/client/list', clientAuth, async (req, res) => {
   try {

@@ -17,11 +17,13 @@ export default function ClientEquipmentDetail() {
   const [fields, setFields] = useState<Field[]>([])
 
   useEffect(() => {
-    api.get('/equipment/client/list').then(r => {
-      const found = r.data.find((e: Equipment) => e.id === id)
-      if (found) setEq(found)
+    Promise.all([
+      api.get(`/equipment/client/${id}`),
+      api.get('/settings/equipment_fields')
+    ]).then(([eqRes, fieldsRes]) => {
+      setEq(eqRes.data)
+      setFields(fieldsRes.data || [])
     }).catch(() => {})
-    api.get('/settings/equipment_fields').then(r => setFields(r.data || [])).catch(() => {})
   }, [id])
 
   if (!eq) return <div className="p-6 text-[#71717A]">Загрузка...</div>

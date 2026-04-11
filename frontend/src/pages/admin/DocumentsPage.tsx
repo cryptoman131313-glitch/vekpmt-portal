@@ -36,12 +36,12 @@ export default function DocumentsPage() {
   }, [])
 
   const loadClient = async (clientId: string) => {
-    if (!equipment[clientId]) {
-      const eq = await api.get(`/clients/${clientId}/equipment`)
-      setEquipment(e => ({ ...e, [clientId]: eq.data }))
-    }
-    const d = await api.get(`/documents/client/${clientId}`)
-    setDocs(prev => ({ ...prev, [clientId]: d.data }))
+    const [eqRes, docsRes] = await Promise.all([
+      equipment[clientId] ? Promise.resolve({ data: equipment[clientId] }) : api.get(`/clients/${clientId}/equipment`),
+      api.get(`/documents/client/${clientId}`)
+    ])
+    setEquipment(e => ({ ...e, [clientId]: eqRes.data }))
+    setDocs(prev => ({ ...prev, [clientId]: docsRes.data }))
   }
 
   const toggle = (clientId: string) => {

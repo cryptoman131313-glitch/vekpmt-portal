@@ -20,12 +20,16 @@ export default function ClientTicketDetail() {
 
   useEffect(() => {
     if (!id) return
-    api.get('/tickets/client/list').then(r => {
-      const t = r.data.find((x: Ticket) => x.id === Number(id))
+    Promise.all([
+      api.get('/tickets/client/list'),
+      api.get(`/tickets/${id}/messages/client`),
+      api.get(`/tickets/${id}/attachments/client`)
+    ]).then(([ticketsRes, msgsRes, attRes]) => {
+      const t = ticketsRes.data.find((x: Ticket) => x.id === Number(id))
       if (t) setTicket(t)
+      setMessages(msgsRes.data)
+      setAttachments(attRes.data)
     }).catch(() => {})
-    loadMessages()
-    loadAttachments()
   }, [id])
 
   const loadMessages = () => {
