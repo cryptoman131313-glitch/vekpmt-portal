@@ -126,50 +126,48 @@ export default function Settings() {
       </div>
 
       {/* Users tab */}
-      {tab === 'users' && (
-        <div>
-          <div className="flex justify-end mb-3">
-            <button onClick={() => { setEditUser(null); setUserForm({ name: '', email: '', role: 'manager', password: '', permissions: {} }); setShowUserForm(true) }}
-              className="btn btn-primary"><UserPlus size={15} /> Добавить сотрудника</button>
-          </div>
-          <div className="card divide-y divide-[#F4F4F5]">
-            {users.length === 0 && <div className="py-8 text-center text-[#A1A1AA] text-sm">Нет сотрудников</div>}
-            {users.map(u => (
-              <div key={u.id} onClick={() => openEdit(u)}
-                className="flex items-center gap-4 p-4 cursor-pointer hover:bg-[#FAFAFA] transition-colors">
-                <div className="w-11 h-11 rounded-full flex-shrink-0 overflow-hidden bg-[#CC0033] flex items-center justify-center">
-                  {u.show_avatar && u.avatar_url
-                    ? <img src={u.avatar_url} alt={u.name} className="w-full h-full object-cover" />
-                    : <span className="text-white text-sm font-bold">{u.avatar || u.name.slice(0,2).toUpperCase()}</span>
-                  }
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-[#18181B]">{u.name}</div>
-                  <div className="text-xs text-[#71717A]">{u.email} · {u.role === 'director' ? 'Руководитель' : u.role === 'manager' ? 'Менеджер' : 'Инженер'}</div>
-                </div>
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {u.is_active ? 'Активен' : 'Деактивирован'}
-                </span>
-              </div>
-            ))}
-          </div>
+      <div className={tab !== 'users' ? 'hidden' : ''}>
+        <div className="flex justify-end mb-3">
+          <button onClick={() => { setEditUser(null); setUserForm({ name: '', email: '', role: 'manager', password: '', permissions: {} }); setShowUserForm(true) }}
+            className="btn btn-primary"><UserPlus size={15} /> Добавить сотрудника</button>
         </div>
-      )}
+        <div className="card divide-y divide-[#F4F4F5]">
+          {users.length === 0 && <div className="py-8 text-center text-[#A1A1AA] text-sm">Нет сотрудников</div>}
+          {users.map(u => (
+            <div key={u.id} onClick={() => openEdit(u)}
+              className="flex items-center gap-4 p-4 cursor-pointer hover:bg-[#FAFAFA] transition-colors">
+              <div className="w-11 h-11 rounded-full flex-shrink-0 overflow-hidden bg-[#CC0033] flex items-center justify-center">
+                {u.show_avatar && u.avatar_url
+                  ? <img src={u.avatar_url} alt={u.name} className="w-full h-full object-cover" />
+                  : <span className="text-white text-sm font-bold">{u.avatar || u.name.slice(0,2).toUpperCase()}</span>
+                }
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-[#18181B]">{u.name}</div>
+                <div className="text-xs text-[#71717A]">{u.email} · {u.role === 'director' ? 'Руководитель' : u.role === 'manager' ? 'Менеджер' : 'Инженер'}</div>
+              </div>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                {u.is_active ? 'Активен' : 'Деактивирован'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Types tab */}
-      {tab === 'types' && (
+      <div className={tab !== 'types' ? 'hidden' : ''}>
         <TypesConstructor />
-      )}
+      </div>
 
       {/* Equipment fields tab */}
-      {tab === 'equipment_fields' && (
+      <div className={tab !== 'equipment_fields' ? 'hidden' : ''}>
         <EquipmentFieldsConstructor />
-      )}
+      </div>
 
       {/* Doc types tab */}
-      {tab === 'doc_types' && (
+      <div className={tab !== 'doc_types' ? 'hidden' : ''}>
         <SimpleListConstructor settingKey="document_types" label="тип документа" />
-      )}
+      </div>
 
       {/* Employee Drawer */}
       {showUserForm && (
