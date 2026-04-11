@@ -6,10 +6,12 @@ import { formatDateTime, statusLabel, statusBadgeClass, STATUS_OPTIONS } from '.
 import toast from 'react-hot-toast'
 import { Send, Paperclip, Pencil, Trash2, File, Download, X as XIcon } from 'lucide-react'
 
+interface TicketStatus { key: string; label: string; color: string }
 interface Ticket {
   id: number; company_name: string; contact_name: string; contact_phone: string; contact_email: string
   equipment_model: string; manufacturer: string; equipment_serial: string; serial_manual: string
-  type_name: string; status: string; description: string; assigned_name: string; created_at: string
+  type_name: string; type_color: string; type_statuses: TicketStatus[]; client_id: string
+  status: string; description: string; assigned_name: string; created_at: string
 }
 interface Message {
   id: string; sender_type: string; sender_name: string; sender_role: string
@@ -143,7 +145,9 @@ export default function TicketDetail() {
           <span className={`badge ${statusBadgeClass(status)}`}>{statusLabel(status)}</span>
           <select className="form-control" style={{ width: 'auto', minWidth: 200 }}
             value={status} onChange={e => handleStatusChange(e.target.value)}>
-            {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {(ticket.type_statuses?.length > 0 ? ticket.type_statuses : STATUS_OPTIONS).map((o: any) => (
+              <option key={o.key || o.value} value={o.key || o.value}>{o.label}</option>
+            ))}
           </select>
         </div>
       </div>
