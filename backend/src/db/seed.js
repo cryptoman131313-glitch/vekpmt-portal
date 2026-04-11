@@ -62,6 +62,18 @@ async function seed() {
     `, [clientId, 'A-160', 'Эффективная Техника', 'ET-A160-2023-001', 'Упаковочный автомат, введён в эксплуатацию 01.03.2023']);
     const equipId = equipRes.rows[0].id;
 
+    // Второе оборудование в каталоге (без привязки к клиенту)
+    await client.query(`
+      INSERT INTO equipment (client_id, model, manufacturer, serial_number, notes)
+      VALUES (NULL, $1, $2, $3, $4)
+      ON CONFLICT (serial_number) DO NOTHING
+    `, [
+      'B-220 Pro',
+      'Эффективная Техника',
+      'ET-B220-2024-001',
+      'Горизонтальный упаковочный автомат повышенной производительности, 120 упак/мин'
+    ]);
+
     // Тип заявки — берём первый доступный
     const typeRes = await client.query(`SELECT id FROM ticket_types LIMIT 1`);
     const typeId = typeRes.rows[0]?.id || null;
