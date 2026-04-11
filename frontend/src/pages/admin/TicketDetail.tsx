@@ -288,7 +288,7 @@ export default function TicketDetail() {
         )}
 
         {/* Reply form */}
-        {channel !== 'history' && <div className="border-t border-[#E4E4E7] p-4">
+        {channel !== 'history' && (user?.role === 'director' || (channel === 'appeal' && user?.permissions?.can_write_appeal) || (channel === 'service' && user?.permissions?.can_write_service) || (channel === 'notes' && user?.permissions?.can_write_notes)) && <div className="border-t border-[#E4E4E7] p-4">
           <textarea className="form-control text-sm resize-none w-full" rows={3}
             placeholder={channel === 'appeal' ? 'Ответ клиенту...' : channel === 'service' ? 'Служебное сообщение...' : 'Примечание...'}
             value={text} onChange={e => setText(e.target.value)}
