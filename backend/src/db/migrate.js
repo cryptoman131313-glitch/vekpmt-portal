@@ -162,16 +162,15 @@ CREATE INDEX IF NOT EXISTS idx_equipment_client ON equipment(client_id);
 `;
 
 const seedDefaults = `
--- Уникальность по имени типа заявки
-CREATE UNIQUE INDEX IF NOT EXISTS idx_ticket_types_name ON ticket_types(name);
-
--- Типы заявок по умолчанию
-INSERT INTO ticket_types (name, color, statuses, auto_statuses, sort_order) VALUES
-  ('Гарантия', '#16A34A', '["new", "in_progress", "waiting_parts", "waiting_client", "done", "cancelled"]', '{"created": "new", "assigned": "in_progress"}', 1),
-  ('Ремонт', '#EA580C', '["new", "in_progress", "waiting_parts", "waiting_client", "done", "cancelled"]', '{"created": "new", "assigned": "in_progress"}', 2),
-  ('ТО', '#2563EB', '["new", "in_progress", "done", "cancelled"]', '{"created": "new", "assigned": "in_progress"}', 3),
-  ('Запчасти', '#7C3AED', '["new", "in_progress", "waiting_parts", "done", "cancelled"]', '{"created": "new", "assigned": "in_progress"}', 4)
-ON CONFLICT (name) DO NOTHING;
+-- Типы заявок по умолчанию (только если таблица пустая)
+INSERT INTO ticket_types (name, color, statuses, auto_statuses, sort_order)
+SELECT * FROM (VALUES
+  ('Гарантия', '#16A34A', '["new", "in_progress", "waiting_parts", "waiting_client", "done", "cancelled"]'::jsonb, '{"created": "new", "assigned": "in_progress"}'::jsonb, 1),
+  ('Ремонт', '#EA580C', '["new", "in_progress", "waiting_parts", "waiting_client", "done", "cancelled"]'::jsonb, '{"created": "new", "assigned": "in_progress"}'::jsonb, 2),
+  ('ТО', '#2563EB', '["new", "in_progress", "done", "cancelled"]'::jsonb, '{"created": "new", "assigned": "in_progress"}'::jsonb, 3),
+  ('Запчасти', '#7C3AED', '["new", "in_progress", "waiting_parts", "done", "cancelled"]'::jsonb, '{"created": "new", "assigned": "in_progress"}'::jsonb, 4)
+) AS v(name, color, statuses, auto_statuses, sort_order)
+WHERE NOT EXISTS (SELECT 1 FROM ticket_types WHERE ticket_types.name = v.name);
 `;
 
 async function migrate() {
