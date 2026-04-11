@@ -330,6 +330,21 @@ router.post('/:id/messages', authMiddleware, async (req, res) => {
   if (!content && !req.body.attachments) {
     return res.status(400).json({ error: 'Введите сообщение' });
   }
+
+  // Руководитель может писать везде, остальные — проверяем разрешения
+  if (req.user.role !== 'director') {
+    const perms = req.user.permissions || {};
+    if (channel === 'appeal' && !perms.can_write_appeal) {
+      return res.status(403).json({ error: 'Нет доступа к чату с клиентом' });
+    }
+    if (channel === 'service' && !perms.can_write_service) {
+      return res.status(403).json({ error: 'Нет доступа к служебному чату' });
+    }
+    if (channel === 'notes' && !perms.can_write_notes) {
+      return res.status(403).json({ error: 'Нет доступа к примечаниям' });
+    }
+  }
+
   try {
     const { rows } = await pool.query(
       `INSERT INTO messages (ticket_id, sender_type, sender_id, channel, content)
