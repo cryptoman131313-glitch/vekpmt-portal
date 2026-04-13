@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../../api/client'
+import { getCache, setCache } from '../../api/cache'
 import { formatDate } from '../../utils/helpers'
 import toast from 'react-hot-toast'
 import { CheckCircle, XCircle } from 'lucide-react'
@@ -23,7 +24,10 @@ export default function RegistrationsList() {
   const [rejectReason, setRejectReason] = useState('')
 
   const load = () => {
-    api.get('/registrations', { params: { status: tab } }).then(r => setItems(r.data)).catch(() => {})
+    const key = `registrations_${tab}`
+    const cached = getCache(key)
+    if (cached) setItems(cached)
+    api.get('/registrations', { params: { status: tab } }).then(r => { setCache(key, r.data); setItems(r.data) }).catch(() => {})
   }
 
   useEffect(() => { load() }, [tab])

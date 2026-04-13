@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../../api/client'
+import { getCache, setCache } from '../../api/cache'
 import { useAuth } from '../../context/AuthContext'
 import { formatDate, statusLabel, statusBadgeClass } from '../../utils/helpers'
 import toast from 'react-hot-toast'
@@ -52,9 +53,12 @@ export default function ClientDetail() {
 
   useEffect(() => {
     if (!id) return
-    api.get(`/clients/${id}`).then(r => setClient(r.data)).catch(() => navigate('/admin/clients'))
-    api.get(`/clients/${id}/equipment`).then(r => setEquipment(r.data)).catch(() => {})
-    api.get(`/clients/${id}/tickets`).then(r => setTickets(r.data)).catch(() => {})
+    const cc = getCache(`client_${id}`); if (cc) setClient(cc)
+    const ce = getCache(`client_${id}_eq`); if (ce) setEquipment(ce)
+    const ct = getCache(`client_${id}_tk`); if (ct) setTickets(ct)
+    api.get(`/clients/${id}`).then(r => { setCache(`client_${id}`, r.data); setClient(r.data) }).catch(() => navigate('/admin/clients'))
+    api.get(`/clients/${id}/equipment`).then(r => { setCache(`client_${id}_eq`, r.data); setEquipment(r.data) }).catch(() => {})
+    api.get(`/clients/${id}/tickets`).then(r => { setCache(`client_${id}_tk`, r.data); setTickets(r.data) }).catch(() => {})
   }, [id])
 
   if (!client) return <div className="p-6 text-[#71717A]">Загрузка...</div>

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import api from '../../api/client'
+import { getCache, setCache } from '../../api/cache'
 import { useAuth } from '../../context/AuthContext'
 import { formatDateTime, statusLabel, statusBadgeClass, STATUS_OPTIONS } from '../../utils/helpers'
 import toast from 'react-hot-toast'
@@ -52,7 +53,9 @@ export default function TicketDetail() {
     api.get(`/tickets/${id}`).then(r => { setTicket(r.data); setStatus(r.data.status); setAssignedTo(r.data.assigned_to || '') }).catch(() => navigate('/admin/tickets'))
     loadAttachments()
     if (user?.role === 'director') {
-      api.get('/users').then(r => setStaffUsers(r.data)).catch(() => {})
+      const cached = getCache('staff_users')
+      if (cached) setStaffUsers(cached)
+      api.get('/users').then(r => { setCache('staff_users', r.data); setStaffUsers(r.data) }).catch(() => {})
     }
   }, [id])
 

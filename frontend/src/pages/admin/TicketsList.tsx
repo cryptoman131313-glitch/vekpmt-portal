@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/client'
+import { getCache, setCache } from '../../api/cache'
 import { formatDate, statusLabel, statusBadgeClass } from '../../utils/helpers'
 import { Search, Plus } from 'lucide-react'
 
@@ -23,18 +24,24 @@ export default function TicketsList() {
   const [filterType, setFilterType] = useState('')
 
   const load = () => {
+    const cacheKey = `tickets_${page}_${limit}_${filterStatus}_${filterType}`
+    const cached = getCache(cacheKey)
+    if (cached) { setTickets(cached.tickets); setTotal(cached.total) }
     const params: Record<string, string | number> = { page, limit }
     if (search) params.search = search
     if (filterStatus) params.status = filterStatus
     if (filterType) params.type_id = filterType
     api.get('/tickets', { params }).then(r => {
+      setCache(cacheKey, { tickets: r.data.tickets || [], total: r.data.total || 0 })
       setTickets(r.data.tickets || [])
       setTotal(r.data.total || 0)
     }).catch(() => {})
   }
 
   useEffect(() => {
-    api.get('/users/ticket-types').then(r => setTypes(r.data)).catch(() => {})
+    const cached = getCache('ticket_types')
+    if (cached) setTypes(cached)
+    api.get('/users/ticket-types').then(r => { setCache('ticket_types', r.data); setTypes(r.data) }).catch(() => {})
   }, [])
 
   useEffect(() => { load() }, [page, limit, filterStatus, filterType])

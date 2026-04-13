@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../../api/client'
+import { getCache, setCache } from '../../api/cache'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, Trash2, UserPlus, ChevronDown, ChevronRight, Check, X, Camera } from 'lucide-react'
 import AvatarCropModal from '../../components/AvatarCropModal'
@@ -43,8 +44,13 @@ export default function Settings() {
   const [userForm, setUserForm] = useState({ name: '', email: '', role: 'manager', password: '', permissions: {} as Record<string, boolean> })
 
   useEffect(() => {
-    api.get('/users').then(r => setUsers(r.data)).catch(() => {})
-    api.get('/users/ticket-types').then(r => setTypes(r.data)).catch(() => {})
+    const cachedUsers = getCache('staff_users')
+    if (cachedUsers) setUsers(cachedUsers)
+    api.get('/users').then(r => { setCache('staff_users', r.data); setUsers(r.data) }).catch(() => {})
+
+    const cachedTypes = getCache('ticket_types')
+    if (cachedTypes) setTypes(cachedTypes)
+    api.get('/users/ticket-types').then(r => { setCache('ticket_types', r.data); setTypes(r.data) }).catch(() => {})
   }, [])
 
   const saveUser = async () => {
