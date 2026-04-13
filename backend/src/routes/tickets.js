@@ -530,7 +530,7 @@ router.post('/:id/messages/client', clientAuth, async (req, res) => {
     const toNotify = new Set();
     if (tkt?.assigned_to) toNotify.add(tkt.assigned_to);
     const directors = await pool.query(`SELECT id FROM users WHERE role = 'director' AND is_active = true`);
-    directors.rows.forEach((r: any) => toNotify.add(r.id));
+    directors.rows.forEach((r) => toNotify.add(r.id));
     for (const uid of toNotify) {
       await createNotification(uid, 'new_message', 'Новое сообщение от клиента', notifBody, parseInt(req.params.id));
     }
