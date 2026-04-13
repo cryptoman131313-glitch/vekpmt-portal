@@ -267,6 +267,12 @@ export default function Dashboard() {
                               <span className="text-[10px]" style={{ color: s.color, opacity: 0.8 }}>{formatTime(e.event_time)}</span>
                             </div>
                           )}
+                          {e.ticket_id && (
+                            <div className="text-[10px] font-semibold mt-0.5 cursor-pointer hover:underline" style={{ color: s.color }}
+                              onClick={ev => { ev.stopPropagation(); navigate(`/admin/tickets/${e.ticket_id}`) }}>
+                              Заявка #{e.ticket_id}
+                            </div>
+                          )}
                           {e.description && <div className="text-[10px] text-[#71717A] mt-1 line-clamp-2">{e.description}</div>}
                           <div className="text-[9px] text-[#A1A1AA] mt-1">{e.created_by_name}</div>
                         </div>
@@ -306,6 +312,12 @@ export default function Dashboard() {
                       <div className="text-[10px] text-[#A1A1AA]">
                         {e.event_time ? formatTime(e.event_time) + ' · ' : ''}{e.created_by_name}
                       </div>
+                      {e.ticket_id && (
+                        <div className="text-[10px] font-semibold text-[#CC0033] cursor-pointer hover:underline"
+                          onClick={ev => { ev.stopPropagation(); navigate(`/admin/tickets/${e.ticket_id}`) }}>
+                          Заявка #{e.ticket_id}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )
