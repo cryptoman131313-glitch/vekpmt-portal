@@ -293,9 +293,9 @@ export default function Dashboard() {
           {/* Ближайшие события */}
           <div className="card p-4">
             <div className="text-sm font-bold text-[#18181B] mb-3">Ближайшие</div>
+            <div className="overflow-y-auto max-h-[220px] -mx-1 px-1">
             {events
               .filter(e => e.event_date.slice(0, 10) >= today.toISOString().slice(0, 10))
-              .slice(0, 4)
               .map(e => {
                 const s = typeStyle(e.type)
                 const d = new Date(e.event_date)
@@ -322,6 +322,7 @@ export default function Dashboard() {
                   </div>
                 )
               })}
+            </div>
             {events.filter(e => e.event_date.slice(0, 10) >= today.toISOString().slice(0, 10)).length === 0 && (
               <div className="text-xs text-[#A1A1AA] text-center py-3">Нет предстоящих событий</div>
             )}
