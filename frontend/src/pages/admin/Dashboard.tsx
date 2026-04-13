@@ -252,7 +252,7 @@ export default function Dashboard() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 overflow-y-auto max-h-[340px] pr-0.5">
                 {selectedDayEvents.map(e => {
                   const s = typeStyle(e.type)
                   const canEdit = e.created_by === user?.id || user?.role === 'director'
