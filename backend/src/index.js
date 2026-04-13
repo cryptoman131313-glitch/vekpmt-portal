@@ -13,6 +13,7 @@ const userRoutes = require('./routes/users');
 const registrationRoutes = require('./routes/registrations');
 const settingsRoutes = require('./routes/settings');
 const documentRoutes = require('./routes/documents');
+const calendarRoutes = require('./routes/calendar');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -71,6 +72,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/registrations', registrationRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/calendar', calendarRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '1.0.0' }));

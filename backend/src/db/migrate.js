@@ -181,6 +181,20 @@ ALTER TABLE attachments ADD COLUMN IF NOT EXISTS ticket_id INTEGER REFERENCES ti
 ALTER TABLE attachments ADD COLUMN IF NOT EXISTS uploaded_by_type VARCHAR(20);
 ALTER TABLE attachments ADD COLUMN IF NOT EXISTS uploaded_by_name VARCHAR(255);
 
+-- Календарь событий
+CREATE TABLE IF NOT EXISTS calendar_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  event_date DATE NOT NULL,
+  event_time TIME,
+  type VARCHAR(20) DEFAULT 'general',
+  ticket_id INTEGER REFERENCES tickets(id) ON DELETE SET NULL,
+  created_by UUID REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Индексы
 CREATE INDEX IF NOT EXISTS idx_tickets_client ON tickets(client_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
