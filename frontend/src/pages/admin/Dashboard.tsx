@@ -34,6 +34,14 @@ function typeStyle(type: string) {
   return EVENT_TYPES.find(t => t.value === type) || EVENT_TYPES[0]
 }
 
+function eventCountLabel(n: number) {
+  const mod10 = n % 10, mod100 = n % 100
+  if (mod100 >= 11 && mod100 <= 14) return `${n} событий`
+  if (mod10 === 1) return `${n} событие`
+  if (mod10 >= 2 && mod10 <= 4) return `${n} события`
+  return `${n} событий`
+}
+
 function formatTime(t: string | null) {
   if (!t) return ''
   return t.slice(0, 5)
@@ -189,23 +197,15 @@ export default function Dashboard() {
                   <div className={`w-6 h-6 flex items-center justify-center text-xs font-bold rounded-full mb-1 ${_isToday ? 'bg-[#CC0033] text-white' : 'text-[#18181B]'}`}>
                     {day}
                   </div>
-                  {/* Events */}
-                  <div className="space-y-0.5">
-                    {dayEvents.slice(0, 3).map(e => {
-                      const s = typeStyle(e.type)
-                      return (
-                        <div key={e.id}
-                          onClick={ev => { ev.stopPropagation(); setSelectedDay(day); openEditForm(e) }}
-                          className="text-[10px] font-medium px-1.5 py-0.5 rounded truncate leading-tight"
-                          style={{ background: s.bg, color: s.color }}>
-                          {e.event_time ? `${formatTime(e.event_time)} ` : ''}{e.title}
-                        </div>
-                      )
-                    })}
-                    {dayEvents.length > 3 && (
-                      <div className="text-[10px] text-[#A1A1AA] px-1">+{dayEvents.length - 3} ещё</div>
-                    )}
-                  </div>
+                  {/* Events count */}
+                  {dayEvents.length > 0 && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: typeStyle(dayEvents[0].type).color }} />
+                      <span className="text-[10px] font-medium text-[#52525B] leading-tight">
+                        {eventCountLabel(dayEvents.length)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )
             })}
