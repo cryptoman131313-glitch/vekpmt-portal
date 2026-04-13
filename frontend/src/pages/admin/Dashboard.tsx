@@ -132,7 +132,7 @@ export default function Dashboard() {
       }
       setShowForm(false)
       loadEvents()
-    } catch { toast.error('Ошибка') }
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Ошибка сервера') }
   }
 
   const handleDelete = async (id: string) => {
@@ -141,7 +141,7 @@ export default function Dashboard() {
       await api.delete(`/calendar/${id}`)
       toast.success('Удалено')
       loadEvents()
-    } catch { toast.error('Ошибка') }
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Ошибка сервера') }
   }
 
   const selectedDayEvents = selectedDay ? eventsForDay(selectedDay) : []
