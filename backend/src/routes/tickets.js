@@ -561,7 +561,7 @@ router.post('/:id/attachments/client', clientAuth, uploadAttachment.single('file
     const { rows } = await pool.query(
       `INSERT INTO attachments (ticket_id, message_id, filename, filepath, filesize, mimetype, uploaded_by_type, uploaded_by_name)
        VALUES ($1, NULL, $2, $3, $4, $5, 'client', $6) RETURNING *`,
-      [req.params.id, req.file.originalname, `/uploads/attachments/${req.file.filename}`, req.file.size, req.file.mimetype, req.client.contact_name]
+      [req.params.id, req.file.originalname, `/uploads/attachments/${req.file.filename}`, req.file.size, req.file.mimetype, req.client.name || req.client.company]
     );
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: 'Ошибка сервера' }); }

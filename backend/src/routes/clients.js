@@ -173,7 +173,7 @@ router.patch('/me/billing', clientAuth, async (req, res) => {
       'UPDATE clients SET billing_details = $1, updated_at = NOW() WHERE id = $2 RETURNING billing_details',
       [JSON.stringify(req.body), req.client.id]
     );
-    res.json(rows[0].billing_details);
+    res.json(rows[0]?.billing_details || {});
   } catch (err) { res.status(500).json({ error: 'Ошибка сервера' }); }
 });
 

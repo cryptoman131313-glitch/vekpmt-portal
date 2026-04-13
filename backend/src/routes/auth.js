@@ -98,7 +98,7 @@ router.post('/client/login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Неверный email или пароль' });
 
     const token = jwt.sign(
-      { id: client.client_id, email: client.email, company: client.company_name, type: 'client' },
+      { id: client.client_id, email: client.email, name: client.name, company: client.company_name, type: 'client' },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );

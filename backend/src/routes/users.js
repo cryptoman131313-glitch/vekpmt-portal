@@ -242,6 +242,7 @@ router.post('/:id/avatar', authMiddleware, (req, res, next) => {
       'UPDATE users SET avatar_url = $1, show_avatar = true, updated_at = NOW() WHERE id = $2 RETURNING id, avatar_url, show_avatar',
       [avatarUrl, req.params.id]
     );
+    if (!rows[0]) return res.status(404).json({ error: 'Пользователь не найден' });
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: 'Ошибка сервера' }); }
 });
@@ -253,6 +254,7 @@ router.patch('/:id/show-avatar', authMiddleware, requireRole('director'), async 
       'UPDATE users SET show_avatar = $1, updated_at = NOW() WHERE id = $2 RETURNING id, avatar_url, show_avatar',
       [req.body.show_avatar, req.params.id]
     );
+    if (!rows[0]) return res.status(404).json({ error: 'Пользователь не найден' });
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: 'Ошибка сервера' }); }
 });
