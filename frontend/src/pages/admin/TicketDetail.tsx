@@ -11,8 +11,9 @@ interface Ticket {
   id: number; company_name: string; contact_name: string; contact_phone: string; contact_email: string
   equipment_model: string; manufacturer: string; equipment_serial: string; serial_manual: string
   type_name: string; type_color: string; type_statuses: TicketStatus[]; client_id: string
-  status: string; description: string; assigned_name: string; created_at: string
+  status: string; description: string; assigned_name: string; assigned_to: string; created_at: string
 }
+interface StaffUser { id: string; name: string; role: string }
 interface Message {
   id: string; sender_type: string; sender_name: string; sender_role: string
   channel: string; content: string; is_edited: boolean; created_at: string; sender_id: string
@@ -41,13 +42,18 @@ export default function TicketDetail() {
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [history, setHistory] = useState<HistoryRecord[]>([])
   const [historyStats, setHistoryStats] = useState<HistoryStats | null>(null)
+  const [staffUsers, setStaffUsers] = useState<StaffUser[]>([])
+  const [assignedTo, setAssignedTo] = useState<string>('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const msgCache = useRef<Record<string, Message[]>>({})
 
   useEffect(() => {
-    api.get(`/tickets/${id}`).then(r => { setTicket(r.data); setStatus(r.data.status) }).catch(() => navigate('/admin/tickets'))
+    api.get(`/tickets/${id}`).then(r => { setTicket(r.data); setStatus(r.data.status); setAssignedTo(r.data.assigned_to || '') }).catch(() => navigate('/admin/tickets'))
     loadAttachments()
+    if (user?.role === 'director') {
+      api.get('/users').then(r => setStaffUsers(r.data)).catch(() => {})
+    }
   }, [id])
 
   // История грузится отдельно — ждём пока загрузится user из контекста
@@ -84,6 +90,16 @@ export default function TicketDetail() {
     try {
       await api.patch(`/tickets/${id}`, { status: newStatus })
       toast.success('Статус обновлён')
+    } catch { toast.error('Ошибка') }
+  }
+
+  const handleAssignChange = async (newAssigned: string) => {
+    setAssignedTo(newAssigned)
+    try {
+      await api.patch(`/tickets/${id}`, { assigned_to: newAssigned || null })
+      const found = staffUsers.find(u => u.id === newAssigned)
+      setTicket(prev => prev ? { ...prev, assigned_name: found?.name || '—', assigned_to: newAssigned } : prev)
+      toast.success(newAssigned ? `Назначено: ${found?.name}` : 'Назначение снято')
     } catch { toast.error('Ошибка') }
   }
 
@@ -172,7 +188,17 @@ export default function TicketDetail() {
           <InfoItem label="Оборудование" value={ticket.equipment_model || ticket.serial_manual || '—'} />
           <InfoItem label="Серийный номер" value={ticket.equipment_serial || ticket.serial_manual || '—'} />
           <InfoItem label="Тип заявки" value={ticket.type_name} />
-          <InfoItem label="Назначен" value={ticket.assigned_name || '—'} />
+          <InfoItem label="Назначен" value={
+            user?.role === 'director' ? (
+              <select className="form-control py-1 text-sm" style={{ minWidth: 180 }}
+                value={assignedTo} onChange={e => handleAssignChange(e.target.value)}>
+                <option value="">— Не назначен —</option>
+                {staffUsers.map(u => (
+                  <option key={u.id} value={u.id}>{u.name} ({u.role === 'manager' ? 'Менеджер' : u.role === 'engineer' ? 'Инженер' : 'Руководитель'})</option>
+                ))}
+              </select>
+            ) : (ticket.assigned_name || '—')
+          } />
           <InfoItem label="Дата создания" value={formatDateTime(ticket.created_at)} />
         </div>
         {ticket.description && (
@@ -357,6 +383,11 @@ function formatHistoryEvent(h: { field_name: string; old_value: string; new_valu
     const from = statusLabels[h.old_value] || h.old_value
     const to = statusLabels[h.new_value] || h.new_value
     return `Статус изменён: ${from} → ${to}`
+  }
+  if (h.field_name === 'assigned') {
+    if (!h.old_value && h.new_value) return `Назначен: ${h.new_value}`
+    if (h.old_value && !h.new_value) return `Назначение снято (был: ${h.old_value})`
+    if (h.old_value && h.new_value) return `Переназначен: ${h.old_value} → ${h.new_value}`
   }
   if (h.field_name === 'assigned_to') {
     if (!h.old_value && h.new_value) return `Назначен сотрудник`

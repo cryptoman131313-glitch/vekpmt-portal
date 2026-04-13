@@ -153,7 +153,7 @@ export default function Dashboard() {
       </div>
 
       {/* Calendar + sidebar */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      {(user?.role === 'director' || user?.permissions?.can_view_calendar) && <div className="grid grid-cols-3 gap-4 mb-6">
 
         {/* Calendar */}
         <div className="card p-5 col-span-2">
@@ -315,7 +315,7 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Recent tickets */}
       <div className="card">

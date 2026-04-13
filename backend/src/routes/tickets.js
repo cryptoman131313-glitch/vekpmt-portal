@@ -284,6 +284,17 @@ router.patch('/:id', authMiddleware, async (req, res) => {
       );
     }
 
+    // Логируем смену назначенного
+    if (assigned_to !== undefined && assigned_to !== current.rows[0].assigned_to) {
+      const newUser = assigned_to ? await pool.query('SELECT name FROM users WHERE id = $1', [assigned_to]) : null;
+      const oldUser = current.rows[0].assigned_to ? await pool.query('SELECT name FROM users WHERE id = $1', [current.rows[0].assigned_to]) : null;
+      await pool.query(
+        `INSERT INTO ticket_history (ticket_id, changed_by, changed_by_type, field_name, old_value, new_value)
+         VALUES ($1, $2, 'user', 'assigned', $3, $4)`,
+        [id, req.user.id, oldUser?.rows[0]?.name || null, newUser?.rows[0]?.name || null]
+      );
+    }
+
     // Уведомление назначенному инженеру
     if (assigned_to !== undefined && assigned_to && assigned_to !== current.rows[0].assigned_to) {
       await createNotification(assigned_to, 'info', 'Вы назначены на заявку', `Заявка #${id}`, parseInt(id));
@@ -506,6 +517,23 @@ router.post('/:id/messages/client', clientAuth, async (req, res) => {
     );
     // Авто-статус: клиент ответил
     await applyAutoStatus(req.params.id, 'client_replied', req.client.id, 'client');
+
+    // Уведомляем назначенного сотрудника и руководителей
+    const ticketFull = await pool.query(
+      `SELECT t.assigned_to, c.company_name FROM tickets t
+       LEFT JOIN clients c ON t.client_id = c.id WHERE t.id = $1`,
+      [req.params.id]
+    );
+    const tkt = ticketFull.rows[0];
+    const company = tkt?.company_name || 'Клиент';
+    const notifBody = `Заявка #${req.params.id} от ${company}: ${content.slice(0, 60)}`;
+    const toNotify = new Set<string>();
+    if (tkt?.assigned_to) toNotify.add(tkt.assigned_to);
+    const directors = await pool.query(`SELECT id FROM users WHERE role = 'director' AND is_active = true`);
+    directors.rows.forEach((r: any) => toNotify.add(r.id));
+    for (const uid of toNotify) {
+      await createNotification(uid, 'new_message', 'Новое сообщение от клиента', notifBody, parseInt(req.params.id));
+    }
 
     res.status(201).json(rows[0]);
   } catch (err) {

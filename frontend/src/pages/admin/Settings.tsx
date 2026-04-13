@@ -23,6 +23,7 @@ const PERMISSIONS = [
   { key: 'can_view_registrations', label: 'Видеть раздел «Регистрации»', group: 'Разделы меню' },
   { key: 'can_view_equipment', label: 'Видеть раздел «Оборудование»', group: 'Разделы меню' },
   { key: 'can_view_documents', label: 'Видеть раздел «Документация»', group: 'Разделы меню' },
+  { key: 'can_view_calendar', label: 'Видеть календарь на дашборде', group: 'Разделы меню' },
   { key: 'can_edit_messages', label: 'Редактировать и удалять свои сообщения', group: 'Действия' },
   { key: 'can_write_appeal', label: 'Писать в Обращение (чат с клиентом)', group: 'Действия' },
   { key: 'can_write_service', label: 'Писать в Служебный чат', group: 'Действия' },
