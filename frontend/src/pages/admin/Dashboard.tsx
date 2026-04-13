@@ -211,15 +211,6 @@ export default function Dashboard() {
             })}
           </div>
 
-          {/* Legend */}
-          <div className="flex items-center gap-4 mt-3">
-            {EVENT_TYPES.map(t => (
-              <div key={t.value} className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ background: t.color }} />
-                <span className="text-xs text-[#71717A]">{t.label}</span>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Sidebar — день + ближайшие события */}
