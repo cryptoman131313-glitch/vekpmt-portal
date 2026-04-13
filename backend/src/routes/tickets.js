@@ -527,7 +527,7 @@ router.post('/:id/messages/client', clientAuth, async (req, res) => {
     const tkt = ticketFull.rows[0];
     const company = tkt?.company_name || 'Клиент';
     const notifBody = `Заявка #${req.params.id} от ${company}: ${content.slice(0, 60)}`;
-    const toNotify = new Set<string>();
+    const toNotify = new Set();
     if (tkt?.assigned_to) toNotify.add(tkt.assigned_to);
     const directors = await pool.query(`SELECT id FROM users WHERE role = 'director' AND is_active = true`);
     directors.rows.forEach((r: any) => toNotify.add(r.id));
