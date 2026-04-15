@@ -80,11 +80,15 @@ router.get('/me', authMiddleware, async (req, res) => {
 
 // PATCH /api/users/me — обновить своё имя и/или пароль
 router.patch('/me', authMiddleware, async (req, res) => {
-  const { name, password } = req.body;
+  const { name, password, currentPassword } = req.body;
   try {
     let password_hash;
     if (password) {
       if (password.length < 8) return res.status(400).json({ error: 'Пароль минимум 8 символов' });
+      if (!currentPassword) return res.status(400).json({ error: 'Введите текущий пароль' });
+      const { rows: cur } = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+      const valid = await bcrypt.compare(currentPassword, cur[0]?.password_hash || '');
+      if (!valid) return res.status(400).json({ error: 'Текущий пароль неверный' });
       password_hash = await bcrypt.hash(password, 12);
     }
     const initials = name ? name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() : undefined;

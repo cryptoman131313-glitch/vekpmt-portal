@@ -8,6 +8,7 @@ import AvatarCropModal from '../../components/AvatarCropModal'
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth()
   const [name, setName] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -43,8 +44,9 @@ export default function ProfilePage() {
     }
     setLoading(true)
     try {
-      await api.patch('/users/me', { name, ...(password ? { password } : {}) })
+      await api.patch('/users/me', { name, ...(password ? { password, currentPassword } : {}) })
       toast.success('Данные сохранены')
+      setCurrentPassword('')
       setPassword('')
       setPasswordConfirm('')
     } catch (err: any) {
@@ -105,6 +107,12 @@ export default function ProfilePage() {
         <div className="pt-3 border-t border-[#E4E4E7]">
           <div className="text-xs font-semibold text-[#71717A] uppercase tracking-wide mb-3">Смена пароля</div>
           <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Текущий пароль</label>
+              <input className="form-control" type="password"
+                placeholder="Введите текущий пароль" autoComplete="current-password"
+                value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
+            </div>
             <div>
               <label className="block text-sm font-medium mb-1">Новый пароль</label>
               <div className="relative">

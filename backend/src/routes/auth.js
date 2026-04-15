@@ -139,15 +139,18 @@ router.post('/forgot-password', async (req, res) => {
       return res.json({ message: 'Если такой email существует, на него отправлено письмо' });
     }
 
-    // Ищем среди клиентов
+    // Ищем среди клиентов (через client_users)
     const { rows: clientRows } = await pool.query(
-      'SELECT id, contact_email FROM clients WHERE contact_email = $1 AND status = $2', [emailNorm, 'active']
+      `SELECT cu.id, cu.email FROM client_users cu
+       JOIN clients c ON c.id = cu.client_id
+       WHERE cu.email = $1 AND cu.is_active = true AND c.status = 'active'`,
+      [emailNorm]
     );
     if (clientRows[0]) {
       const token = uuidv4();
       const expires = new Date(Date.now() + 60 * 60 * 1000);
-      await pool.query('UPDATE clients SET reset_token = $1, reset_token_expires = $2 WHERE id = $3', [token, expires, clientRows[0].id]);
-      await sendResetEmail(clientRows[0].contact_email, `${frontendUrl}/reset-password?token=${token}`);
+      await pool.query('UPDATE client_users SET reset_token = $1, reset_token_expires = $2 WHERE id = $3', [token, expires, clientRows[0].id]);
+      await sendResetEmail(clientRows[0].email, `${frontendUrl}/reset-password?token=${token}`);
     }
 
     res.json({ message: 'Если такой email существует, на него отправлено письмо' });
@@ -173,13 +176,13 @@ router.post('/reset-password', async (req, res) => {
       return res.json({ message: 'Пароль успешно изменён' });
     }
 
-    // Проверяем клиентов
+    // Проверяем клиентов (через client_users)
     const { rows: clientRows } = await pool.query(
-      'SELECT id FROM clients WHERE reset_token = $1 AND reset_token_expires > NOW()', [token]
+      'SELECT id FROM client_users WHERE reset_token = $1 AND reset_token_expires > NOW()', [token]
     );
     if (clientRows[0]) {
       const hash = await bcrypt.hash(password, 12);
-      await pool.query('UPDATE clients SET password_hash = $1, reset_token = NULL, reset_token_expires = NULL WHERE id = $2', [hash, clientRows[0].id]);
+      await pool.query('UPDATE client_users SET password_hash = $1, reset_token = NULL, reset_token_expires = NULL WHERE id = $2', [hash, clientRows[0].id]);
       return res.json({ message: 'Пароль успешно изменён' });
     }
 
