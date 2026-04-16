@@ -5,6 +5,15 @@ import toast from 'react-hot-toast'
 import { ChevronDown, ChevronRight, Plus, Trash2, Download, FileText, Wrench } from 'lucide-react'
 import { companyInitials } from '../../utils/helpers'
 
+async function downloadStaffDoc(docId: string) {
+  try {
+    const { data } = await api.post(`/documents/${docId}/download-link`)
+    if (data?.url) window.location.href = data.url
+  } catch (err: any) {
+    toast.error(err.response?.data?.error || 'Не удалось скачать')
+  }
+}
+
 interface Client { id: string; company_name: string; contact_name: string }
 interface Equipment { id: string; model: string; serial_number: string }
 interface Document { id: string; title: string; filename: string; filesize: number; doc_type: string; equipment_id: string | null; created_at: string; uploaded_by_name: string }
@@ -257,8 +266,8 @@ function DocRow({ doc, clientId, getTypeName, onDelete }: {
         <span className="text-xs text-[#A1A1AA] ml-2">{formatSize(doc.filesize)}</span>
       </div>
       <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-all">
-        <a href={`/api/documents/download/${doc.id}?token=${localStorage.getItem('token')}`} target="_blank"
-          className="btn btn-secondary p-1.5"><Download size={13} /></a>
+        <button onClick={() => downloadStaffDoc(doc.id)}
+          className="btn btn-secondary p-1.5"><Download size={13} /></button>
         <button onClick={() => onDelete(doc.id, clientId)}
           className="btn btn-danger p-1.5"><Trash2 size={13} /></button>
       </div>

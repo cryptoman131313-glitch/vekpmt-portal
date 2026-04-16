@@ -2,6 +2,16 @@ import { useEffect, useState } from 'react'
 import api from '../../api/client'
 import { getCache, setCache } from '../../api/cache'
 import { FileText, Download, Wrench } from 'lucide-react'
+import toast from 'react-hot-toast'
+
+async function downloadClientDoc(docId: string) {
+  try {
+    const { data } = await api.post(`/documents/${docId}/client-download-link`)
+    if (data?.url) window.location.href = data.url
+  } catch (err: any) {
+    toast.error(err.response?.data?.error || 'Не удалось скачать')
+  }
+}
 
 const EQ_COLORS = [
   { bg: '#EFF6FF', border: '#3B82F6', text: '#1D4ED8' },
@@ -115,10 +125,10 @@ function DocItem({ doc, getTypeName }: { doc: Document; getTypeName: (id: string
         <div className="text-sm font-medium text-[#18181B]">{doc.title}</div>
         <div className="text-xs text-[#A1A1AA]">{getTypeName(doc.doc_type)} · {formatSize(doc.filesize)}</div>
       </div>
-      <a href={`/api/documents/client-download/${doc.id}?token=${localStorage.getItem('token')}`}
+      <button onClick={() => downloadClientDoc(doc.id)}
         className="btn btn-secondary py-1.5 px-3 text-xs gap-1.5 flex-shrink-0">
         <Download size={13} /> Скачать
-      </a>
+      </button>
     </div>
   )
 }

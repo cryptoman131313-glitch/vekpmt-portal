@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const jwt = require('jsonwebtoken');
 const pool = require('../db/pool');
 const { authMiddleware, clientAuth } = require('../middleware/auth');
 
@@ -31,12 +32,19 @@ const ALLOWED_DOC_TYPES = new Set([
   'text/plain',
   'application/zip',
 ]);
+const ALLOWED_DOC_EXT = new Set([
+  '.jpg', '.jpeg', '.png', '.webp', '.pdf',
+  '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.txt', '.zip',
+]);
 const upload = multer({
   storage,
   limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (ALLOWED_DOC_TYPES.has(file.mimetype)) return cb(null, true);
-    cb(new Error('Недопустимый тип файла'));
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (!ALLOWED_DOC_EXT.has(ext)) return cb(new Error('Недопустимое расширение файла'));
+    if (!ALLOWED_DOC_TYPES.has(file.mimetype)) return cb(new Error('Недопустимый тип файла'));
+    cb(null, true);
   },
 }); // 50MB
 
@@ -80,6 +88,7 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req, res) =
     return res.status(400).json({ error: 'Укажите клиента, название и файл' });
   }
   try {
+    const safeName = (req.file.originalname || 'file').replace(/[^\w.\-]/g, '_').slice(0, 255);
     const { rows } = await pool.query(
       `INSERT INTO documents (client_id, equipment_id, title, filename, filepath, filesize, doc_type, uploaded_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
@@ -87,7 +96,7 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req, res) =
         client_id,
         equipment_id || null,
         title,
-        req.file.originalname,
+        safeName,
         req.file.filename,
         req.file.size,
         doc_type || 'general',
@@ -115,14 +124,68 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/documents/download/:id — скачать файл (сотрудник)
-router.get('/download/:id', (req, res, next) => {
-  if (req.query.token && !req.headers.authorization) {
-    req.headers.authorization = `Bearer ${req.query.token}`;
-  }
-  next();
-}, authMiddleware, async (req, res) => {
+// --- Безопасные ссылки на скачивание ---
+// Идея: сессионный JWT не утекает в URL. Клиент запрашивает короткоживущий
+// download-токен (60 сек), который действителен только для конкретного документа.
+
+function issueDownloadToken(payload) {
+  return jwt.sign(
+    { ...payload, kind: 'doc_download' },
+    process.env.JWT_SECRET,
+    { expiresIn: '60s', algorithm: 'HS256' }
+  );
+}
+
+function verifyDownloadToken(token, expectedDocId, expectedAudience) {
   try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    if (decoded.kind !== 'doc_download') return null;
+    if (decoded.docId !== expectedDocId) return null;
+    if (decoded.aud !== expectedAudience) return null;
+    return decoded;
+  } catch { return null; }
+}
+
+// POST /api/documents/:id/download-link — сотрудник получает короткоживущую ссылку
+router.post('/:id/download-link', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id FROM documents WHERE id = $1', [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Не найдено' });
+    const dl = issueDownloadToken({ docId: req.params.id, aud: 'staff', userId: req.user.id });
+    res.json({ url: `/api/documents/download/${req.params.id}?dl=${dl}` });
+  } catch (err) { res.status(500).json({ error: 'Ошибка сервера' }); }
+});
+
+// POST /api/documents/:id/client-download-link — клиент получает короткоживущую ссылку
+router.post('/:id/client-download-link', clientAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id FROM documents WHERE id = $1 AND client_id = $2',
+      [req.params.id, req.client.id]
+    );
+    if (!rows[0]) return res.status(403).json({ error: 'Нет доступа' });
+    const dl = issueDownloadToken({ docId: req.params.id, aud: 'client', clientId: req.client.id });
+    res.json({ url: `/api/documents/client-download/${req.params.id}?dl=${dl}` });
+  } catch (err) { res.status(500).json({ error: 'Ошибка сервера' }); }
+});
+
+// GET /api/documents/download/:id — скачать файл (сотрудник)
+// Поддержка двух способов авторизации:
+//   1) заголовок Authorization (API-вызовы)
+//   2) одноразовый ?dl=... (для <a href> из браузера)
+router.get('/download/:id', async (req, res) => {
+  try {
+    let authorized = false;
+    if (req.query.dl) {
+      authorized = !!verifyDownloadToken(req.query.dl, req.params.id, 'staff');
+    } else if (req.headers.authorization) {
+      try {
+        jwt.verify(req.headers.authorization.split(' ')[1], process.env.JWT_SECRET, { algorithms: ['HS256'] });
+        authorized = true;
+      } catch {}
+    }
+    if (!authorized) return res.status(401).json({ error: 'Не авторизован' });
+
     const { rows } = await pool.query('SELECT * FROM documents WHERE id = $1', [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Не найдено' });
     const filepath = path.join(__dirname, '../../uploads/documents', rows[0].filepath);
@@ -133,16 +196,23 @@ router.get('/download/:id', (req, res, next) => {
 });
 
 // GET /api/documents/client-download/:id — скачать файл (клиент)
-router.get('/client-download/:id', (req, res, next) => {
-  if (req.query.token && !req.headers.authorization) {
-    req.headers.authorization = `Bearer ${req.query.token}`;
-  }
-  next();
-}, clientAuth, async (req, res) => {
+router.get('/client-download/:id', async (req, res) => {
   try {
+    let clientId = null;
+    if (req.query.dl) {
+      const decoded = verifyDownloadToken(req.query.dl, req.params.id, 'client');
+      if (decoded) clientId = decoded.clientId;
+    } else if (req.headers.authorization) {
+      try {
+        const decoded = jwt.verify(req.headers.authorization.split(' ')[1], process.env.JWT_SECRET, { algorithms: ['HS256'] });
+        if (decoded.type === 'client') clientId = decoded.id;
+      } catch {}
+    }
+    if (!clientId) return res.status(401).json({ error: 'Не авторизован' });
+
     const { rows } = await pool.query(
       'SELECT * FROM documents WHERE id = $1 AND client_id = $2',
-      [req.params.id, req.client.id]
+      [req.params.id, clientId]
     );
     if (!rows[0]) return res.status(403).json({ error: 'Нет доступа' });
     const filepath = path.join(__dirname, '../../uploads/documents', rows[0].filepath);

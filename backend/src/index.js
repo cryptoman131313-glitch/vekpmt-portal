@@ -1,4 +1,15 @@
 require('dotenv').config();
+
+// Проверяем критичные переменные окружения перед запуском
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  console.error('FATAL: JWT_SECRET не задан или слишком короткий (минимум 32 символа)');
+  process.exit(1);
+}
+if (!process.env.DATABASE_URL && !process.env.DB_HOST) {
+  console.error('FATAL: не задана ни DATABASE_URL, ни DB_HOST');
+  process.exit(1);
+}
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -17,13 +28,16 @@ const calendarRoutes = require('./routes/calendar');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+// Привязка к localhost в продакшене (nginx проксирует запросы из 127.0.0.1).
+// Для Railway/облака — слушаем все интерфейсы через HOST=0.0.0.0
+const HOST = process.env.HOST || '127.0.0.1';
 
-// Доверяем Railway proxy
+// Доверяем обратному прокси (nginx / Railway)
 app.set('trust proxy', 1);
 
 // Security headers
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'cross-origin' }, // разрешаем /uploads из фронтенда
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
   contentSecurityPolicy: false, // отключаем CSP — он мешает API-серверу
 }));
 
@@ -33,8 +47,6 @@ app.use(cors({
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
     if (allowedOrigins.includes(origin)) return cb(null, true);
-    // В продакшне разрешаем railway.app домены
-    if (origin.endsWith('.railway.app') || origin.endsWith('.up.railway.app')) return cb(null, true);
     cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -59,7 +71,7 @@ app.use('/uploads', (req, res, next) => {
 
 // Rate limiting
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { error: 'Слишком много попыток, попробуйте позже' } });
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Слишком много попыток, попробуйте позже' } });
 app.use('/api/', limiter);
 app.use('/api/auth', authLimiter);
 
@@ -86,6 +98,16 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Внутренняя ошибка сервера' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Ловим необработанные ошибки процесса, чтобы они попадали в логи PM2
+process.on('unhandledRejection', (reason) => {
+  console.error('UNHANDLED REJECTION:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION:', err);
+  // PM2 перезапустит процесс
+  process.exit(1);
+});
+
+app.listen(PORT, HOST, () => {
+  console.log(`Server running on ${HOST}:${PORT}`);
 });

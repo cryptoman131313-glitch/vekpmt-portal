@@ -1,6 +1,6 @@
 const express = require('express');
 const pool = require('../db/pool');
-const { authMiddleware, clientAuth } = require('../middleware/auth');
+const { authMiddleware, clientAuth, requireRole } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -28,12 +28,19 @@ const ALLOWED_MIME_TYPES = new Set([
   'application/x-rar-compressed',
   'video/mp4', 'video/quicktime',
 ]);
+const ALLOWED_EXTENSIONS = new Set([
+  '.jpg', '.jpeg', '.png', '.gif', '.webp',
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx',
+  '.txt', '.zip', '.rar', '.mp4', '.mov',
+]);
 const uploadAttachment = multer({
   storage: attachStorage,
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (ALLOWED_MIME_TYPES.has(file.mimetype)) return cb(null, true);
-    cb(new Error('Недопустимый тип файла'));
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (!ALLOWED_EXTENSIONS.has(ext)) return cb(new Error('Недопустимое расширение файла'));
+    if (!ALLOWED_MIME_TYPES.has(file.mimetype)) return cb(new Error('Недопустимый тип файла'));
+    cb(null, true);
   },
 });
 
@@ -545,10 +552,11 @@ router.post('/:id/messages/client', clientAuth, async (req, res) => {
 router.post('/:id/attachments', authMiddleware, uploadAttachment.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
   try {
+    const safeName = (req.file.originalname || 'file').replace(/[^\w.\-]/g, '_').slice(0, 255);
     const { rows } = await pool.query(
       `INSERT INTO attachments (ticket_id, message_id, filename, filepath, filesize, mimetype, uploaded_by_type, uploaded_by_name)
        VALUES ($1, NULL, $2, $3, $4, $5, 'user', $6) RETURNING *`,
-      [req.params.id, req.file.originalname, `/uploads/attachments/${req.file.filename}`, req.file.size, req.file.mimetype, req.user.name]
+      [req.params.id, safeName, `/uploads/attachments/${req.file.filename}`, req.file.size, req.file.mimetype, req.user.name]
     );
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: 'Ошибка сервера' }); }
@@ -558,10 +566,16 @@ router.post('/:id/attachments', authMiddleware, uploadAttachment.single('file'),
 router.post('/:id/attachments/client', clientAuth, uploadAttachment.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
   try {
+    // Проверка что заявка принадлежит клиенту (защита от IDOR)
+    const own = await pool.query('SELECT client_id FROM tickets WHERE id = $1', [req.params.id]);
+    if (!own.rows[0] || own.rows[0].client_id !== req.client.id) {
+      return res.status(403).json({ error: 'Нет доступа' });
+    }
+    const safeName = (req.file.originalname || 'file').replace(/[^\w.\-]/g, '_').slice(0, 255);
     const { rows } = await pool.query(
       `INSERT INTO attachments (ticket_id, message_id, filename, filepath, filesize, mimetype, uploaded_by_type, uploaded_by_name)
        VALUES ($1, NULL, $2, $3, $4, $5, 'client', $6) RETURNING *`,
-      [req.params.id, req.file.originalname, `/uploads/attachments/${req.file.filename}`, req.file.size, req.file.mimetype, req.client.name || req.client.company]
+      [req.params.id, safeName, `/uploads/attachments/${req.file.filename}`, req.file.size, req.file.mimetype, req.client.name || req.client.company]
     );
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: 'Ошибка сервера' }); }
@@ -581,6 +595,11 @@ router.get('/:id/attachments', authMiddleware, async (req, res) => {
 // GET /api/tickets/:id/attachments/client — список вложений заявки (клиент)
 router.get('/:id/attachments/client', clientAuth, async (req, res) => {
   try {
+    // Проверка принадлежности заявки клиенту (защита от IDOR)
+    const own = await pool.query('SELECT client_id FROM tickets WHERE id = $1', [req.params.id]);
+    if (!own.rows[0] || own.rows[0].client_id !== req.client.id) {
+      return res.status(403).json({ error: 'Нет доступа' });
+    }
     const { rows } = await pool.query(
       `SELECT * FROM attachments WHERE ticket_id = $1 ORDER BY created_at ASC`,
       [req.params.id]
@@ -590,7 +609,7 @@ router.get('/:id/attachments/client', clientAuth, async (req, res) => {
 });
 
 // GET /api/tickets/:id/history — история изменений (только руководитель)
-router.get('/:id/history', authMiddleware, async (req, res) => {
+router.get('/:id/history', authMiddleware, requireRole('director'), async (req, res) => {
   try {
     // История изменений
     const { rows: history } = await pool.query(

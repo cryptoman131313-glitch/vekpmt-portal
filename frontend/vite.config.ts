@@ -16,4 +16,10 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    // В продакшене исходники не нужны — не раскрываем код
+    sourcemap: false,
+    // Минификация по умолчанию включена
+    chunkSizeWarningLimit: 1000,
+  },
 })

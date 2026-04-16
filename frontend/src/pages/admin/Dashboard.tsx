@@ -47,6 +47,26 @@ function formatTime(t: string | null) {
   return t.slice(0, 5)
 }
 
+// Локальная дата в формате YYYY-MM-DD (без UTC-сдвига)
+function localDateStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// Событие ещё не прошло? Учитывает и дату, и время
+function isUpcoming(e: CalendarEvent) {
+  const now = new Date()
+  const todayStr = localDateStr(now)
+  const eventDate = e.event_date.slice(0, 10)
+  if (eventDate > todayStr) return true
+  if (eventDate < todayStr) return false
+  // Событие сегодня — сверяем время
+  if (!e.event_time) return true // без времени — целый день ещё актуально
+  const [h, m] = e.event_time.split(':').map(Number)
+  const nowMinutes = now.getHours() * 60 + now.getMinutes()
+  const eventMinutes = (h || 0) * 60 + (m || 0)
+  return eventMinutes >= nowMinutes
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -286,7 +306,7 @@ export default function Dashboard() {
             <div className="text-sm font-bold text-[#18181B] mb-3">Ближайшие</div>
             <div className="overflow-y-auto max-h-[220px] -mx-1 px-1">
             {events
-              .filter(e => e.event_date.slice(0, 10) >= today.toISOString().slice(0, 10))
+              .filter(isUpcoming)
               .map(e => {
                 const s = typeStyle(e.type)
                 const d = new Date(e.event_date)
@@ -314,7 +334,7 @@ export default function Dashboard() {
                 )
               })}
             </div>
-            {events.filter(e => e.event_date.slice(0, 10) >= today.toISOString().slice(0, 10)).length === 0 && (
+            {events.filter(isUpcoming).length === 0 && (
               <div className="text-xs text-[#A1A1AA] text-center py-3">Нет предстоящих событий</div>
             )}
           </div>

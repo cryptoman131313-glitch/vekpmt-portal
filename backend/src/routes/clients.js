@@ -37,7 +37,9 @@ router.get('/', authMiddleware, async (req, res) => {
   const { search } = req.query;
   try {
     const { rows } = await pool.query(
-      `SELECT c.*,
+      `SELECT c.id, c.company_name, c.inn, c.legal_address, c.actual_address,
+              c.contact_name, c.contact_phone, c.contact_email, c.status,
+              c.created_at, c.updated_at,
         (SELECT COUNT(*) FROM equipment e WHERE e.client_id = c.id) as equipment_count,
         (SELECT COUNT(*) FROM tickets t WHERE t.client_id = c.id) as tickets_count
        FROM clients c
@@ -54,7 +56,13 @@ router.get('/', authMiddleware, async (req, res) => {
 // GET /api/clients/:id — карточка клиента
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.id]);
+    const { rows } = await pool.query(
+      `SELECT id, company_name, inn, legal_address, actual_address,
+              contact_name, contact_phone, contact_email, status,
+              billing_details, created_at, updated_at
+       FROM clients WHERE id = $1`,
+      [req.params.id]
+    );
     if (!rows[0]) return res.status(404).json({ error: 'Клиент не найден' });
     res.json(rows[0]);
   } catch (err) {
@@ -169,9 +177,25 @@ router.get('/me/billing', clientAuth, async (req, res) => {
 // PATCH /api/clients/me/billing — сохранить реквизиты
 router.patch('/me/billing', clientAuth, async (req, res) => {
   try {
+    // Whitelist: принимаем только известные поля, обрезаем длину строк
+    const trim = (v, max = 255) => (typeof v === 'string' ? v.slice(0, max).trim() : null);
+    const billing = {
+      company_full_name: trim(req.body.company_full_name, 255),
+      inn:               trim(req.body.inn, 12),
+      kpp:               trim(req.body.kpp, 9),
+      ogrn:              trim(req.body.ogrn, 15),
+      legal_address:     trim(req.body.legal_address, 500),
+      bank_name:         trim(req.body.bank_name, 255),
+      bik:               trim(req.body.bik, 9),
+      correspondent_account: trim(req.body.correspondent_account, 25),
+      account:           trim(req.body.account, 25),
+      director_name:     trim(req.body.director_name, 255),
+      contact_phone:     trim(req.body.contact_phone, 50),
+      contact_email:     trim(req.body.contact_email, 255),
+    };
     const { rows } = await pool.query(
       'UPDATE clients SET billing_details = $1, updated_at = NOW() WHERE id = $2 RETURNING billing_details',
-      [JSON.stringify(req.body), req.client.id]
+      [JSON.stringify(billing), req.client.id]
     );
     res.json(rows[0]?.billing_details || {});
   } catch (err) { res.status(500).json({ error: 'Ошибка сервера' }); }

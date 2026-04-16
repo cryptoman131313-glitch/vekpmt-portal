@@ -6,6 +6,9 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+const AVATAR_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const AVATAR_EXT  = new Set(['.jpg', '.jpeg', '.png', '.webp']);
+
 const avatarStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(__dirname, '../../uploads/avatars');
@@ -13,10 +16,23 @@ const avatarStorage = multer.diskStorage({
     cb(null, dir);
   },
   filename: (req, file, cb) => {
-    cb(null, `${req.params.id}${path.extname(file.originalname)}`);
+    // Жёстко фиксируем расширение по mimetype, не доверяем оригинальному имени файла
+    const ext = file.mimetype === 'image/png' ? '.png'
+              : file.mimetype === 'image/webp' ? '.webp'
+              : '.jpg';
+    cb(null, `${req.params.id}${ext}`);
   }
 });
-const uploadAvatar = multer({ storage: avatarStorage, limits: { fileSize: 5 * 1024 * 1024 } });
+const uploadAvatar = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (!AVATAR_EXT.has(ext))  return cb(new Error('Допустимы только JPG/PNG/WEBP'));
+    if (!AVATAR_MIME.has(file.mimetype)) return cb(new Error('Недопустимый тип файла'));
+    cb(null, true);
+  }
+});
 
 const router = express.Router();
 
@@ -141,10 +157,16 @@ router.patch('/:id', authMiddleware, requireRole('director'), async (req, res) =
 // PATCH /api/users/me/notifications — настройки уведомлений
 router.patch('/me/notifications', authMiddleware, async (req, res) => {
   try {
+    // Whitelist: принимаем только булевые флаги из фиксированного списка
+    const allowed = ['email', 'sound', 'new_ticket', 'new_message', 'status_changed', 'assigned'];
+    const settings = {};
+    for (const key of allowed) {
+      if (key in req.body) settings[key] = Boolean(req.body[key]);
+    }
     const { rows } = await pool.query(
       `UPDATE users SET notification_settings = $1, updated_at = NOW() WHERE id = $2
        RETURNING notification_settings`,
-      [req.body, req.user.id]
+      [JSON.stringify(settings), req.user.id]
     );
     res.json(rows[0]);
   } catch (err) {
