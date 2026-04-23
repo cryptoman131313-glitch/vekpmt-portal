@@ -180,6 +180,9 @@ ALTER TABLE equipment ADD COLUMN IF NOT EXISTS characteristics JSONB DEFAULT '{}
 ALTER TABLE attachments ADD COLUMN IF NOT EXISTS ticket_id INTEGER REFERENCES tickets(id) ON DELETE CASCADE;
 ALTER TABLE attachments ADD COLUMN IF NOT EXISTS uploaded_by_type VARCHAR(20);
 ALTER TABLE attachments ADD COLUMN IF NOT EXISTS uploaded_by_name VARCHAR(255);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS billing_details JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS reset_token TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ;
 
 -- Календарь событий
 CREATE TABLE IF NOT EXISTS calendar_events (
