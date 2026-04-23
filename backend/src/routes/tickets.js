@@ -85,8 +85,10 @@ const router = express.Router();
 
 // GET /api/tickets — список заявок (сотрудник)
 router.get('/', authMiddleware, async (req, res) => {
-  const { status, type_id, assigned_to, search, page = 1, limit = 10 } = req.query;
-  const offset = (page - 1) * limit;
+  const { status, type_id, assigned_to, search } = req.query;
+  const pageNum = Math.max(1, parseInt(req.query.page) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
+  const offset = (pageNum - 1) * limitNum;
 
   let where = [];
   let params = [];
@@ -116,7 +118,7 @@ router.get('/', authMiddleware, async (req, res) => {
        ${whereStr}
        ORDER BY t.created_at DESC
        LIMIT $${idx++} OFFSET $${idx++}`,
-      [...params, limit, offset]
+      [...params, limitNum, offset]
     );
 
     const countResult = await pool.query(
@@ -130,8 +132,8 @@ router.get('/', authMiddleware, async (req, res) => {
     res.json({
       tickets: rows,
       total: parseInt(countResult.rows[0].count),
-      page: parseInt(page),
-      limit: parseInt(limit),
+      page: pageNum,
+      limit: limitNum,
     });
   } catch (err) {
     console.error(err);
@@ -317,6 +319,10 @@ router.patch('/:id', authMiddleware, async (req, res) => {
 // GET /api/tickets/:id/messages — сообщения заявки
 router.get('/:id/messages', authMiddleware, async (req, res) => {
   const { channel } = req.query;
+  const ALLOWED_CHANNELS = ['appeal', 'service', 'notes'];
+  if (channel && !ALLOWED_CHANNELS.includes(channel)) {
+    return res.status(400).json({ error: 'Недопустимый канал сообщений' });
+  }
   let where = 'WHERE m.ticket_id = $1 AND m.is_deleted = false';
   const params = [req.params.id];
   if (channel) { where += ' AND m.channel = $2'; params.push(channel); }
