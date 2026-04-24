@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db/pool');
 const { authMiddleware, clientAuth, requireRole } = require('../middleware/auth');
+const { sendTicketCreated, sendTicketStatusChanged, sendTicketAssigned, sendNewMessageToClient, sendNewMessageToStaff } = require('../services/emailService');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -235,11 +236,22 @@ router.post('/', authMiddleware, async (req, res) => {
     );
 
     // Уведомления директорам и менеджерам о новой заявке
-    const clientRow = await pool.query('SELECT company_name FROM clients WHERE id = $1', [client_id]);
+    const clientRow = await pool.query('SELECT company_name, contact_email FROM clients WHERE id = $1', [client_id]);
     const companyName = clientRow.rows[0]?.company_name || '';
+    const clientEmail = clientRow.rows[0]?.contact_email;
     const { rows: staff } = await pool.query(`SELECT id FROM users WHERE role IN ('director','manager') AND is_active = true`);
     for (const s of staff) {
       await createNotification(s.id, 'info', 'Новая заявка', `Заявка #${rows[0].id} от ${companyName}`, rows[0].id);
+    }
+
+    // Email клиенту — подтверждение создания заявки
+    if (clientEmail) {
+      const typeRow = await pool.query('SELECT name FROM ticket_types WHERE id = $1', [type_id]);
+      sendTicketCreated(clientEmail, {
+        ticket_id: rows[0].id,
+        type_name: typeRow.rows[0]?.name,
+        description,
+      }).catch(() => {});
     }
 
     res.status(201).json(rows[0]);
@@ -307,6 +319,27 @@ router.patch('/:id', authMiddleware, async (req, res) => {
     // Уведомление назначенному инженеру
     if (assigned_to !== undefined && assigned_to && assigned_to !== current.rows[0].assigned_to) {
       await createNotification(assigned_to, 'info', 'Вы назначены на заявку', `Заявка #${id}`, parseInt(id));
+
+      // Email назначенному инженеру
+      const engRow = await pool.query('SELECT email, name FROM users WHERE id = $1', [assigned_to]);
+      const tktInfo = await pool.query(`SELECT t.description, c.company_name FROM tickets t LEFT JOIN clients c ON t.client_id = c.id WHERE t.id = $1`, [id]);
+      if (engRow.rows[0]) {
+        sendTicketAssigned(engRow.rows[0].email, {
+          ticket_id: id,
+          engineer_name: engRow.rows[0].name,
+          company_name: tktInfo.rows[0]?.company_name || '',
+          description: tktInfo.rows[0]?.description || '',
+        }).catch(() => {});
+      }
+    }
+
+    // Email клиенту при смене статуса
+    if (newStatus && newStatus !== current.rows[0].status) {
+      const clientInfo = await pool.query(`SELECT c.contact_email FROM tickets t LEFT JOIN clients c ON t.client_id = c.id WHERE t.id = $1`, [id]);
+      const clientEmail = clientInfo.rows[0]?.contact_email;
+      if (clientEmail) {
+        sendTicketStatusChanged(clientEmail, { ticket_id: id, new_status: newStatus }).catch(() => {});
+      }
     }
 
     res.json(rows[0]);
@@ -395,6 +428,17 @@ router.post('/:id/messages', authMiddleware, async (req, res) => {
           await createNotification(s.id, 'info', 'Новое сообщение', `Заявка #${ticketId}: ${(content || '').slice(0, 60)}`, parseInt(ticketId));
         }
       }
+
+      // Email клиенту о новом сообщении от сотрудника
+      const clientInfo = await pool.query(`SELECT c.contact_email FROM tickets t LEFT JOIN clients c ON t.client_id = c.id WHERE t.id = $1`, [ticketId]);
+      const clientEmail = clientInfo.rows[0]?.contact_email;
+      if (clientEmail) {
+        sendNewMessageToClient(clientEmail, {
+          ticket_id: ticketId,
+          sender_name: req.user.name,
+          content,
+        }).catch(() => {});
+      }
     }
 
     res.status(201).json(rows[0]);
@@ -451,12 +495,24 @@ router.post('/client/new', clientAuth, async (req, res) => {
       [rows[0].id, req.client.id]
     );
     // Уведомляем всех активных сотрудников
-    const clientInfo = await pool.query('SELECT company_name FROM clients WHERE id = $1', [req.client.id]);
+    const clientInfo = await pool.query('SELECT company_name, contact_email FROM clients WHERE id = $1', [req.client.id]);
     const companyName = clientInfo.rows[0]?.company_name || 'Клиент';
+    const clientEmail = clientInfo.rows[0]?.contact_email;
     const staff = await pool.query('SELECT id FROM users WHERE is_active = true');
     for (const s of staff.rows) {
       await createNotification(s.id, 'new_ticket', `Новая заявка #${rows[0].id}`, `${companyName}: ${description.slice(0, 70)}`, rows[0].id);
     }
+
+    // Email клиенту — подтверждение
+    if (clientEmail) {
+      const typeRow = await pool.query('SELECT name FROM ticket_types WHERE id = $1', [type_id]);
+      sendTicketCreated(clientEmail, {
+        ticket_id: rows[0].id,
+        type_name: typeRow.rows[0]?.name,
+        description,
+      }).catch(() => {});
+    }
+
     res.status(201).json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Ошибка сервера' });
@@ -546,6 +602,18 @@ router.post('/:id/messages/client', clientAuth, async (req, res) => {
     directors.rows.forEach((r) => toNotify.add(r.id));
     for (const uid of toNotify) {
       await createNotification(uid, 'new_message', 'Новое сообщение от клиента', notifBody, parseInt(req.params.id));
+    }
+
+    // Email назначенному инженеру о сообщении от клиента
+    if (tkt?.assigned_to) {
+      const engRow = await pool.query('SELECT email FROM users WHERE id = $1', [tkt.assigned_to]);
+      if (engRow.rows[0]?.email) {
+        sendNewMessageToStaff(engRow.rows[0].email, {
+          ticket_id: req.params.id,
+          company_name: company,
+          content,
+        }).catch(() => {});
+      }
     }
 
     res.status(201).json(rows[0]);

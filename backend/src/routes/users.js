@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const pool = require('../db/pool');
 const { authMiddleware, requireRole } = require('../middleware/auth');
+const { sendStaffWelcome } = require('../services/emailService');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -64,6 +65,9 @@ router.post('/', authMiddleware, requireRole('director'), async (req, res) => {
       [email.toLowerCase(), name, role, password_hash, initials, permissions || {}]
     );
     res.status(201).json(rows[0]);
+
+    // Email новому сотруднику с данными входа
+    sendStaffWelcome(email.toLowerCase(), { name, role, password }).catch(() => {});
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Email уже используется' });
     res.status(500).json({ error: 'Ошибка сервера' });

@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const https = require('https');
 const pool = require('../db/pool');
 const { authMiddleware, requireRole } = require('../middleware/auth');
+const { sendRegistrationReceivedToStaff, sendRegistrationApproved, sendRegistrationRejected } = require('../services/emailService');
 
 const router = express.Router();
 
@@ -69,6 +70,12 @@ router.post('/', async (req, res) => {
     );
 
     res.status(201).json({ message: 'Заявка на регистрацию отправлена', registration: rows[0] });
+
+    // Email руководителям о новой заявке
+    const { rows: directors } = await pool.query(`SELECT email FROM users WHERE role = 'director' AND is_active = true`);
+    for (const d of directors) {
+      sendRegistrationReceivedToStaff(d.email, { company_name, contact_name, contact_phone, contact_email }).catch(() => {});
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка сервера' });
@@ -133,6 +140,9 @@ router.post('/:id/approve', authMiddleware, requireRole('director', 'manager'), 
 
     await client.query('COMMIT');
     res.json({ message: 'Регистрация одобрена', client_id: clientRows[0].id });
+
+    // Email клиенту об одобрении
+    sendRegistrationApproved(reg.contact_email, { contact_name: reg.contact_name }).catch(() => {});
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);
@@ -157,6 +167,9 @@ router.post('/:id/reject', authMiddleware, requireRole('director', 'manager'), a
     );
 
     res.json({ message: 'Регистрация отклонена' });
+
+    // Email клиенту об отклонении
+    sendRegistrationRejected(rows[0].contact_email, { contact_name: rows[0].contact_name, reason }).catch(() => {});
   } catch (err) {
     res.status(500).json({ error: 'Ошибка сервера' });
   }

@@ -2,43 +2,16 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const nodemailer = require('nodemailer');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const pool = require('../db/pool');
 const { authMiddleware } = require('../middleware/auth');
+const { sendPasswordReset } = require('../services/emailService');
 
 const router = express.Router();
 
-// Отправка email через SMTP (или лог если не настроен)
 async function sendResetEmail(toEmail, resetLink) {
-  if (!process.env.SMTP_HOST || process.env.SMTP_USER === 'your_email@vekpmt.ru') {
-    console.log(`[RESET PASSWORD] Ссылка для ${toEmail}: ${resetLink}`);
-    return;
-  }
-  const isLocal = ['localhost', '127.0.0.1'].includes(process.env.SMTP_HOST);
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT) || 587,
-    secure: false,
-    ignoreTLS: isLocal,
-    tls: { rejectUnauthorized: false },
-    ...(isLocal ? {} : { auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } }),
-  });
-  await transporter.sendMail({
-    from: `"Сервисный Портал" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
-    to: toEmail,
-    subject: 'Восстановление пароля — Эффективная Техника',
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:480px">
-        <h2 style="color:#18181B">Восстановление пароля</h2>
-        <p>Вы запросили сброс пароля для Сервисного Портала.</p>
-        <p>Нажмите кнопку ниже, чтобы задать новый пароль. Ссылка действительна 1 час.</p>
-        <a href="${resetLink}" style="display:inline-block;margin:16px 0;padding:12px 24px;background:#CC0033;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">Сбросить пароль</a>
-        <p style="color:#71717A;font-size:12px">Если вы не запрашивали сброс пароля — просто проигнорируйте это письмо.</p>
-      </div>
-    `,
-  });
+  await sendPasswordReset(toEmail, resetLink);
 }
 
 // POST /api/auth/login — вход сотрудника
