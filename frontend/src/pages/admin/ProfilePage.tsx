@@ -92,6 +92,7 @@ export default function ProfilePage() {
     setLoading(true)
     try {
       await api.patch('/users/me', { name, ...(password ? { password, currentPassword } : {}) })
+      await refreshUser()
       toast.success('Данные сохранены')
       setCurrentPassword('')
       setPassword('')
