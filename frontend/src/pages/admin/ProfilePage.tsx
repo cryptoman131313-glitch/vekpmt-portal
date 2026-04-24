@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
-import { Eye, EyeOff, Save, Camera } from 'lucide-react'
+import { Eye, EyeOff, Save, Camera, ShieldCheck, ShieldOff, QrCode } from 'lucide-react'
 import AvatarCropModal from '../../components/AvatarCropModal'
 
 export default function ProfilePage() {
@@ -16,12 +16,59 @@ export default function ProfilePage() {
   const [cropFile, setCropFile] = useState<File | null>(null)
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined)
 
+  // 2FA
+  const [totpEnabled, setTotpEnabled] = useState(false)
+  const [totpStep, setTotpStep] = useState<'idle' | 'setup' | 'disable'>('idle')
+  const [totpQr, setTotpQr] = useState('')
+  const [totpSecret, setTotpSecret] = useState('')
+  const [totpCode, setTotpCode] = useState('')
+  const [totpLoading, setTotpLoading] = useState(false)
+
   useEffect(() => {
     if (user) {
       setName(user.name)
       setAvatarUrl(user.avatar_url)
     }
+    api.get('/auth/2fa/status').then(r => setTotpEnabled(r.data.enabled)).catch(() => {})
   }, [user])
+
+  const handleSetup2fa = async () => {
+    setTotpLoading(true)
+    try {
+      const { data } = await api.post('/auth/2fa/setup')
+      setTotpQr(data.qrCodeUrl)
+      setTotpSecret(data.secret)
+      setTotpStep('setup')
+      setTotpCode('')
+    } catch { toast.error('Ошибка настройки 2FA') }
+    finally { setTotpLoading(false) }
+  }
+
+  const handleEnable2fa = async () => {
+    if (!totpCode) { toast.error('Введите код'); return }
+    setTotpLoading(true)
+    try {
+      await api.post('/auth/2fa/enable', { code: totpCode })
+      setTotpEnabled(true)
+      setTotpStep('idle')
+      setTotpCode('')
+      toast.success('2FA включена!')
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Неверный код') }
+    finally { setTotpLoading(false) }
+  }
+
+  const handleDisable2fa = async () => {
+    if (!totpCode) { toast.error('Введите код из приложения'); return }
+    setTotpLoading(true)
+    try {
+      await api.post('/auth/2fa/disable', { code: totpCode })
+      setTotpEnabled(false)
+      setTotpStep('idle')
+      setTotpCode('')
+      toast.success('2FA отключена')
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Неверный код') }
+    finally { setTotpLoading(false) }
+  }
 
   const handleAvatarUpload = async (blob: Blob) => {
     if (!user) return
@@ -139,6 +186,87 @@ export default function ProfilePage() {
             <Save size={15} /> {loading ? 'Сохранение...' : 'Сохранить изменения'}
           </button>
         </div>
+      </div>
+
+      {/* 2FA */}
+      <div className="card p-5 mt-4">
+        <div className="text-xs font-semibold text-[#71717A] uppercase tracking-wide mb-3">Двухфакторная аутентификация</div>
+
+        {totpStep === 'idle' && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {totpEnabled
+                ? <ShieldCheck size={22} className="text-green-600 flex-shrink-0" />
+                : <ShieldOff size={22} className="text-[#A1A1AA] flex-shrink-0" />}
+              <div>
+                <div className="text-sm font-semibold text-[#18181B]">
+                  {totpEnabled ? 'Включена' : 'Отключена'}
+                </div>
+                <div className="text-xs text-[#71717A]">
+                  {totpEnabled ? 'При входе запрашивается код из приложения' : 'Защитите аккаунт с помощью Google Authenticator'}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={totpEnabled ? () => { setTotpStep('disable'); setTotpCode('') } : handleSetup2fa}
+              disabled={totpLoading}
+              className={`btn text-sm px-4 py-2 disabled:opacity-60 ${totpEnabled ? 'btn-secondary text-red-600 border-red-200 hover:bg-red-50' : 'btn-primary'}`}>
+              {totpLoading ? '...' : totpEnabled ? 'Отключить' : 'Включить'}
+            </button>
+          </div>
+        )}
+
+        {totpStep === 'setup' && (
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-3 bg-[#F4F4F5] rounded-lg">
+              <QrCode size={18} className="text-[#003399] mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-[#18181B]">
+                <div className="font-semibold mb-1">Как настроить:</div>
+                <ol className="list-decimal ml-4 space-y-1 text-[#52525B]">
+                  <li>Скачайте <strong>Google Authenticator</strong> или <strong>Яндекс Ключ</strong></li>
+                  <li>Нажмите «+» → «Сканировать QR-код»</li>
+                  <li>Отсканируйте код ниже</li>
+                  <li>Введите 6 цифр из приложения</li>
+                </ol>
+              </div>
+            </div>
+            {totpQr && (
+              <div className="flex justify-center">
+                <img src={totpQr} alt="QR код" className="w-44 h-44 border border-[#E4E4E7] rounded-lg p-2 bg-white" />
+              </div>
+            )}
+            <div className="text-xs text-center text-[#71717A]">
+              Или введите ключ вручную: <span className="font-mono text-[#18181B] bg-[#F4F4F5] px-1 rounded">{totpSecret}</span>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Код подтверждения</label>
+              <input className="form-control text-center text-xl tracking-widest" type="text" inputMode="numeric"
+                maxLength={6} placeholder="000000" value={totpCode}
+                onChange={e => setTotpCode(e.target.value.replace(/\D/g, ''))} autoFocus />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => { setTotpStep('idle'); setTotpCode('') }} className="btn btn-secondary flex-1 justify-center text-sm">Отмена</button>
+              <button onClick={handleEnable2fa} disabled={totpLoading || totpCode.length < 6} className="btn btn-primary flex-1 justify-center text-sm disabled:opacity-60">
+                {totpLoading ? 'Проверка...' : 'Подтвердить и включить'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {totpStep === 'disable' && (
+          <div className="space-y-4">
+            <p className="text-sm text-[#52525B]">Введите текущий код из приложения для отключения 2FA:</p>
+            <input className="form-control text-center text-xl tracking-widest" type="text" inputMode="numeric"
+              maxLength={6} placeholder="000000" value={totpCode}
+              onChange={e => setTotpCode(e.target.value.replace(/\D/g, ''))} autoFocus />
+            <div className="flex gap-2">
+              <button onClick={() => { setTotpStep('idle'); setTotpCode('') }} className="btn btn-secondary flex-1 justify-center text-sm">Отмена</button>
+              <button onClick={handleDisable2fa} disabled={totpLoading || totpCode.length < 6} className="btn text-sm flex-1 justify-center bg-red-600 text-white hover:bg-red-700 disabled:opacity-60">
+                {totpLoading ? '...' : 'Отключить 2FA'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

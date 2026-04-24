@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const nodemailer = require('nodemailer');
+const speakeasy = require('speakeasy');
+const QRCode = require('qrcode');
 const pool = require('../db/pool');
 const { authMiddleware } = require('../middleware/auth');
 
@@ -52,6 +54,16 @@ router.post('/login', async (req, res) => {
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ error: 'Неверный email или пароль' });
+
+    // Если 2FA включена — отдаём временный токен
+    if (user.totp_enabled && user.totp_secret) {
+      const tempToken = jwt.sign(
+        { id: user.id, type: 'totp_pending' },
+        process.env.JWT_SECRET,
+        { expiresIn: '5m' }
+      );
+      return res.json({ requires2fa: true, tempToken });
+    }
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, name: user.name, type: 'user', permissions: user.permissions || {} },
@@ -187,6 +199,108 @@ router.post('/reset-password', async (req, res) => {
     }
 
     return res.status(400).json({ error: 'Ссылка недействительна или устарела' });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// POST /api/auth/2fa/verify-login — второй шаг входа с 2FA
+router.post('/2fa/verify-login', async (req, res) => {
+  const { tempToken, code } = req.body;
+  if (!tempToken || !code) return res.status(400).json({ error: 'Неверный запрос' });
+  try {
+    const decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
+    if (decoded.type !== 'totp_pending') return res.status(401).json({ error: 'Недействительный токен' });
+
+    const { rows } = await pool.query(
+      'SELECT id, email, name, role, avatar, permissions, notification_settings, totp_secret FROM users WHERE id = $1 AND is_active = true',
+      [decoded.id]
+    );
+    const user = rows[0];
+    if (!user) return res.status(401).json({ error: 'Пользователь не найден' });
+
+    const valid = speakeasy.totp.verify({
+      secret: user.totp_secret,
+      encoding: 'base32',
+      token: code.replace(/\s/g, ''),
+      window: 1,
+    });
+    if (!valid) return res.status(401).json({ error: 'Неверный код' });
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role, name: user.name, type: 'user', permissions: user.permissions || {} },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+    );
+    res.json({
+      token,
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, avatar: user.avatar, permissions: user.permissions, notification_settings: user.notification_settings },
+    });
+  } catch (err) {
+    res.status(401).json({ error: 'Недействительный токен' });
+  }
+});
+
+// POST /api/auth/2fa/setup — получить QR-код для настройки
+router.post('/2fa/setup', authMiddleware, async (req, res) => {
+  try {
+    const secret = speakeasy.generateSecret({
+      name: `Эффективная Техника (${req.user.email})`,
+      length: 20,
+    });
+    const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
+    // Сохраняем секрет временно (не включаем 2FA пока не подтвердят)
+    await pool.query('UPDATE users SET totp_secret = $1 WHERE id = $2', [secret.base32, req.user.id]);
+    res.json({ secret: secret.base32, qrCodeUrl });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// POST /api/auth/2fa/enable — подтвердить код и включить 2FA
+router.post('/2fa/enable', authMiddleware, async (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: 'Введите код' });
+  try {
+    const { rows } = await pool.query('SELECT totp_secret FROM users WHERE id = $1', [req.user.id]);
+    const secret = rows[0]?.totp_secret;
+    if (!secret) return res.status(400).json({ error: 'Сначала настройте 2FA' });
+
+    const valid = speakeasy.totp.verify({ secret, encoding: 'base32', token: code.replace(/\s/g, ''), window: 1 });
+    if (!valid) return res.status(400).json({ error: 'Неверный код. Проверьте приложение и попробуйте снова' });
+
+    await pool.query('UPDATE users SET totp_enabled = true WHERE id = $1', [req.user.id]);
+    res.json({ message: '2FA включена' });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// POST /api/auth/2fa/disable — отключить 2FA
+router.post('/2fa/disable', authMiddleware, async (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: 'Введите код из приложения' });
+  try {
+    const { rows } = await pool.query('SELECT totp_secret, totp_enabled FROM users WHERE id = $1', [req.user.id]);
+    const user = rows[0];
+    if (!user?.totp_enabled) return res.status(400).json({ error: '2FA не включена' });
+
+    const valid = speakeasy.totp.verify({ secret: user.totp_secret, encoding: 'base32', token: code.replace(/\s/g, ''), window: 1 });
+    if (!valid) return res.status(400).json({ error: 'Неверный код' });
+
+    await pool.query('UPDATE users SET totp_enabled = false, totp_secret = NULL WHERE id = $1', [req.user.id]);
+    res.json({ message: '2FA отключена' });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// GET /api/auth/2fa/status — статус 2FA текущего пользователя
+router.get('/2fa/status', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT totp_enabled FROM users WHERE id = $1', [req.user.id]);
+    res.json({ enabled: rows[0]?.totp_enabled || false });
   } catch (err) {
     res.status(500).json({ error: 'Ошибка сервера' });
   }

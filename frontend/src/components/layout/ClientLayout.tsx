@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { FileText, Wrench, BookOpen, User, LogOut } from 'lucide-react'
+import { FileText, Plus, Wrench, BookOpen, User, LogOut } from 'lucide-react'
 
 export default function ClientLayout() {
   const { client, logout } = useAuth()
@@ -22,7 +22,11 @@ export default function ClientLayout() {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-3 px-2">
+          <div className="text-[10px] font-semibold text-[#555] uppercase px-2 mb-1">Заявки</div>
           <NavItem to="/client/tickets" end icon={<FileText size={20} />} label="Мои заявки" />
+          <NavItem to="/client/tickets/new" icon={<Plus size={20} />} label="Новая заявка" />
+
+          <div className="text-[10px] font-semibold text-[#555] uppercase px-2 mt-4 mb-1">Личный кабинет</div>
           <NavItem to="/client/equipment" icon={<Wrench size={20} />} label="Моё оборудование" />
           <NavItem to="/client/docs" icon={<BookOpen size={20} />} label="Документация" />
           <NavItem to="/client/profile" icon={<User size={20} />} label="Профиль" />
@@ -45,6 +49,12 @@ export default function ClientLayout() {
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header — такой же как в AdminLayout */}
+        <header className="bg-white border-b border-[#E4E4E7] px-6 py-3 flex items-center justify-end gap-3 flex-shrink-0">
+          <div className="text-xs text-[#A1A1AA]">Личный кабинет</div>
+        </header>
+
+        {/* Page content */}
         <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>

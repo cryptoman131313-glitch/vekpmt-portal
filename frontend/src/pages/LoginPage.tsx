@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import api from '../api/client'
 import toast from 'react-hot-toast'
+import { ShieldCheck } from 'lucide-react'
 
 export default function LoginPage() {
   const { loginUser, loginClient, user, client } = useAuth()
@@ -10,6 +12,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<'staff' | 'client'>('staff')
+
+  // 2FA step
+  const [requires2fa, setRequires2fa] = useState(false)
+  const [tempToken, setTempToken] = useState('')
+  const [totpCode, setTotpCode] = useState('')
+  const [totpLoading, setTotpLoading] = useState(false)
 
   if (user) { navigate('/admin/dashboard', { replace: true }); return null }
   if (client) { navigate('/client/tickets', { replace: true }); return null }
@@ -20,7 +28,13 @@ export default function LoginPage() {
     setLoading(true)
     try {
       if (mode === 'staff') {
-        await loginUser(email, password)
+        const result = await loginUser(email, password)
+        // Если loginUser вернул requires2fa
+        if ((result as any)?.requires2fa) {
+          setTempToken((result as any).tempToken)
+          setRequires2fa(true)
+          return
+        }
         navigate('/admin/dashboard')
       } else {
         await loginClient(email, password)
@@ -31,6 +45,67 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleTotp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!totpCode) { toast.error('Введите код'); return }
+    setTotpLoading(true)
+    try {
+      const { data } = await api.post('/auth/2fa/verify-login', { tempToken, code: totpCode })
+      // Сохраняем токен через loginUser с уже готовыми данными
+      localStorage.setItem('token', data.token)
+      window.location.href = '/admin/dashboard'
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Неверный код')
+    } finally {
+      setTotpLoading(false)
+    }
+  }
+
+  // Экран ввода 2FA кода
+  if (requires2fa) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4" style={{background: 'linear-gradient(135deg, #18181B 0%, #27272A 50%, #003399 100%)'}}>
+        <div className="bg-white rounded-xl border border-[#E4E4E7] shadow-sm w-full max-w-[400px] p-8">
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-14 h-14 rounded-full bg-[#003399] flex items-center justify-center mb-3">
+              <ShieldCheck size={28} className="text-white" />
+            </div>
+            <h1 className="text-xl font-bold text-[#18181B]">Двухфакторная аутентификация</h1>
+            <p className="text-sm text-[#71717A] mt-1 text-center">Введите 6-значный код из приложения Google Authenticator</p>
+          </div>
+
+          <form onSubmit={handleTotp}>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-[#18181B] mb-1.5">Код из приложения</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9 ]*"
+                maxLength={7}
+                className="form-control text-center text-2xl font-bold tracking-[0.3em] py-3"
+                placeholder="000000"
+                value={totpCode}
+                onChange={e => setTotpCode(e.target.value.replace(/[^0-9]/g, ''))}
+                autoFocus
+                autoComplete="one-time-code"
+              />
+            </div>
+
+            <button type="submit" disabled={totpLoading || totpCode.length < 6}
+              className="btn btn-primary w-full justify-center py-3 text-base disabled:opacity-60">
+              {totpLoading ? 'Проверка...' : 'Подтвердить'}
+            </button>
+
+            <button type="button" onClick={() => { setRequires2fa(false); setTotpCode('') }}
+              className="mt-3 w-full text-center text-sm text-[#71717A] hover:text-[#18181B] transition-colors">
+              ← Вернуться
+            </button>
+          </form>
+        </div>
+      </div>
+    )
   }
 
   return (

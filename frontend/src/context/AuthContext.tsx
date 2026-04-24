@@ -25,7 +25,7 @@ interface AuthContextType {
   user: User | null
   client: Client | null
   token: string | null
-  loginUser: (email: string, password: string) => Promise<void>
+  loginUser: (email: string, password: string) => Promise<any>
   loginClient: (email: string, password: string) => Promise<void>
   logout: () => void
   refreshUser: () => Promise<void>
@@ -50,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginUser = async (email: string, password: string) => {
     const { data } = await api.post('/auth/login', { email, password })
+    if (data.requires2fa) return data  // возвращаем для обработки 2FA в LoginPage
     localStorage.setItem('token', data.token)
     localStorage.setItem('user', JSON.stringify(data.user))
     localStorage.removeItem('client')
