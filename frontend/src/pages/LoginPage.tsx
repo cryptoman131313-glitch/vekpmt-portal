@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../api/client'
 import toast from 'react-hot-toast'
-import { ShieldCheck } from 'lucide-react'
+import { ShieldCheck, Eye, EyeOff } from 'lucide-react'
 
 export default function LoginPage() {
   const { loginUser, loginClient, user, client } = useAuth()
@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<'staff' | 'client'>('staff')
+  const [showPass, setShowPass] = useState(false)
 
   // 2FA step
   const [requires2fa, setRequires2fa] = useState(false)
@@ -140,8 +141,14 @@ export default function LoginPage() {
           </div>
           <div className="mb-6">
             <label className="block text-sm font-medium text-[#18181B] mb-1.5">Пароль</label>
-            <input type="password" className="form-control" placeholder="Введите пароль"
-              value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" />
+            <div className="relative">
+              <input type={showPass ? 'text' : 'password'} className="form-control pr-10" placeholder="Введите пароль"
+                value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" />
+              <button type="button" onClick={() => setShowPass(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A1A1AA] hover:text-[#71717A]">
+                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
           <button type="submit" disabled={loading}
