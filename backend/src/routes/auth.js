@@ -16,11 +16,14 @@ async function sendResetEmail(toEmail, resetLink) {
     console.log(`[RESET PASSWORD] Ссылка для ${toEmail}: ${resetLink}`);
     return;
   }
+  const isLocal = ['localhost', '127.0.0.1'].includes(process.env.SMTP_HOST);
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: parseInt(process.env.SMTP_PORT) || 587,
     secure: false,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    ignoreTLS: isLocal,
+    tls: { rejectUnauthorized: false },
+    ...(isLocal ? {} : { auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } }),
   });
   await transporter.sendMail({
     from: `"Сервисный Портал" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
