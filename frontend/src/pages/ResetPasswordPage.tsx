@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import api from '../api/client'
 import toast from 'react-hot-toast'
@@ -12,6 +12,15 @@ export default function ResetPasswordPage() {
   const [confirm, setConfirm] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [tokenValid, setTokenValid] = useState<boolean | null>(null) // null = проверяем
+
+  // Проверяем токен на сервере при загрузке страницы
+  useEffect(() => {
+    if (!token) { setTokenValid(false); return }
+    api.get(`/auth/validate-reset-token?token=${encodeURIComponent(token)}`)
+      .then(({ data }) => setTokenValid(data.valid))
+      .catch(() => setTokenValid(false))
+  }, [token])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,18 +36,29 @@ export default function ResetPasswordPage() {
     } finally { setLoading(false) }
   }
 
-  if (!token) {
+  const errorScreen = (
+    <div className="min-h-screen flex items-center justify-center p-4"
+      style={{ background: 'linear-gradient(135deg, #18181B 0%, #27272A 50%, #003399 100%)' }}>
+      <div className="bg-white rounded-xl p-8 max-w-sm w-full text-center">
+        <div className="text-[#CC0033] font-semibold mb-2">Ссылка недействительна</div>
+        <div className="text-sm text-[#71717A] mb-4">Ссылка для сброса пароля устарела или уже была использована. Запросите новую.</div>
+        <Link to="/forgot-password" className="btn btn-primary justify-center w-full">Запросить заново</Link>
+      </div>
+    </div>
+  )
+
+  // Идёт проверка токена
+  if (tokenValid === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4"
+      <div className="min-h-screen flex items-center justify-center"
         style={{ background: 'linear-gradient(135deg, #18181B 0%, #27272A 50%, #003399 100%)' }}>
-        <div className="bg-white rounded-xl p-8 max-w-sm w-full text-center">
-          <div className="text-[#CC0033] font-semibold mb-2">Недействительная ссылка</div>
-          <div className="text-sm text-[#71717A] mb-4">Ссылка для сброса пароля устарела или неверна.</div>
-          <Link to="/forgot-password" className="btn btn-primary justify-center w-full">Запросить заново</Link>
-        </div>
+        <div className="text-white text-sm opacity-60">Проверка ссылки...</div>
       </div>
     )
   }
+
+  // Токен невалиден или истёк
+  if (!tokenValid) return errorScreen
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4"

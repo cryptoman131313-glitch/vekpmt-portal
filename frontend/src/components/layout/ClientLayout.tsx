@@ -47,6 +47,14 @@ export default function ClientLayout() {
         </div>
       </aside>
 
+      {/* SyntaxLab badge */}
+      <a href="https://syntaxlab.ru" target="_blank" rel="noopener noreferrer"
+        style={{ position: 'fixed', bottom: 16, right: 20, fontSize: 13, fontWeight: 500, color: '#71717A', textDecoration: 'none', zIndex: 50 }}
+        onMouseEnter={e => (e.currentTarget.style.color = '#CC0033')}
+        onMouseLeave={e => (e.currentTarget.style.color = '#71717A')}>
+        Разработано SyntaxLab.ru
+      </a>
+
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header — такой же как в AdminLayout */}

@@ -107,6 +107,27 @@ router.post('/client/login', async (req, res) => {
   }
 });
 
+// GET /api/auth/validate-reset-token?token=...
+router.get('/validate-reset-token', async (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.json({ valid: false });
+  try {
+    const { rows: userRows } = await pool.query(
+      'SELECT id FROM users WHERE reset_token = $1 AND reset_token_expires > NOW()', [token]
+    );
+    if (userRows[0]) return res.json({ valid: true });
+
+    const { rows: clientRows } = await pool.query(
+      'SELECT id FROM client_users WHERE reset_token = $1 AND reset_token_expires > NOW()', [token]
+    );
+    if (clientRows[0]) return res.json({ valid: true });
+
+    return res.json({ valid: false });
+  } catch (err) {
+    res.status(500).json({ valid: false });
+  }
+});
+
 // POST /api/auth/forgot-password
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
