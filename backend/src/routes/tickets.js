@@ -829,6 +829,7 @@ router.get('/:id/history', authMiddleware, requireRole('director'), async (req, 
       }
     });
   } catch (err) {
+    console.error('[HISTORY ERROR]', err);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });

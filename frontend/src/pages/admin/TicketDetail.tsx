@@ -61,7 +61,7 @@ export default function TicketDetail() {
 
   // История грузится отдельно — ждём пока загрузится user из контекста
   useEffect(() => {
-    if (id && user?.role === 'director') loadHistory()
+    if (id && user) loadHistory()
   }, [id, user?.role])
 
   useEffect(() => {
