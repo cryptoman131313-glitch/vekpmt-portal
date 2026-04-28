@@ -174,9 +174,17 @@ export default function TicketDetail() {
           <span className={`badge ${statusBadgeClass(status)}`}>{statusLabel(status)}</span>
           <select className="form-control" style={{ width: 'auto', minWidth: 200 }}
             value={status} onChange={e => handleStatusChange(e.target.value)}>
-            {(ticket.type_statuses?.length > 0 ? ticket.type_statuses : STATUS_OPTIONS).map((o: any) => (
-              <option key={o.key || o.value} value={o.key || o.value}>{o.label}</option>
-            ))}
+            {(() => {
+              const raw = ticket.type_statuses?.length > 0 ? ticket.type_statuses : STATUS_OPTIONS
+              return raw.map((o: any) => {
+                // Поддержка двух форматов: строка ("new") и объект ({key/value, label})
+                if (typeof o === 'string') {
+                  return <option key={o} value={o}>{statusLabel(o)}</option>
+                }
+                const val = o.key || o.value
+                return <option key={val} value={val}>{o.label || statusLabel(val)}</option>
+              })
+            })()}
           </select>
         </div>
       </div>
