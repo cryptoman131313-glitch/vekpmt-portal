@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import api from '../../api/client'
 import { formatDateTime, statusLabel, statusBadgeClass } from '../../utils/helpers'
 import toast from 'react-hot-toast'
-import { Send, Paperclip, File, Download } from 'lucide-react'
+import { Send, Paperclip, File, Download, Eye } from 'lucide-react'
 
 interface Message { id: string; sender_type: string; sender_name: string; sender_role: string; content: string; created_at: string }
 interface Ticket { id: number; type_name: string; type_color: string; status: string; description: string; created_at: string; equipment_model: string; equipment_serial: string }
@@ -174,10 +174,22 @@ export default function ClientTicketDetail() {
                     <div className="text-xs font-medium text-[#18181B] truncate">{a.filename}</div>
                     <div className="text-[10px] text-[#A1A1AA]">{a.uploaded_by_name} · {(a.filesize / 1024).toFixed(0)} КБ</div>
                   </div>
-                  <a href={`${a.filepath}?token=${localStorage.getItem('token')}`} target="_blank" rel="noreferrer"
-                    className="text-[#003399] hover:text-[#0044cc] opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button type="button" title="Просмотр" onClick={async () => {
+                    try {
+                      const { data } = await api.post(`/tickets/attachments/${a.id}/client-download-link`)
+                      window.open(`${data.url}&inline=1`, '_blank', 'noopener')
+                    } catch { toast.error('Не удалось открыть') }
+                  }} className="text-[#003399] hover:text-[#0044cc] opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Eye size={14} />
+                  </button>
+                  <button type="button" title="Скачать" onClick={async () => {
+                    try {
+                      const { data } = await api.post(`/tickets/attachments/${a.id}/client-download-link`)
+                      window.location.href = data.url
+                    } catch { toast.error('Не удалось скачать') }
+                  }} className="text-[#003399] hover:text-[#0044cc] opacity-0 group-hover:opacity-100 transition-opacity">
                     <Download size={14} />
-                  </a>
+                  </button>
                 </div>
               ))}
             </div>

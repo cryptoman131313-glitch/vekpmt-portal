@@ -1,10 +1,25 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const pool = require('../db/pool');
 const { authMiddleware, clientAuth, requireRole } = require('../middleware/auth');
 const { sendTicketCreated, sendTicketStatusChanged, sendTicketAssigned, sendNewMessageToClient, sendNewMessageToStaff } = require('../services/emailService');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+
+// --- Download-токены для вложений (60 сек, привязан к attachmentId + аудитории) ---
+function issueAttachToken(payload) {
+  return jwt.sign({ ...payload, kind: 'att_download' }, process.env.JWT_SECRET, { expiresIn: '60s', algorithm: 'HS256' });
+}
+function verifyAttachToken(token, expectedAttId, expectedAudience) {
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    if (decoded.kind !== 'att_download') return null;
+    if (decoded.attId !== expectedAttId) return null;
+    if (decoded.aud !== expectedAudience) return null;
+    return decoded;
+  } catch { return null; }
+}
 
 const attachStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -665,6 +680,59 @@ router.post('/:id/attachments/client', clientAuth, uploadAttachment.single('file
     );
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: 'Ошибка сервера' }); }
+});
+
+// POST /api/tickets/attachments/:attId/download-link — короткоживущая ссылка (сотрудник)
+router.post('/attachments/:attId/download-link', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id FROM attachments WHERE id = $1', [req.params.attId]);
+    if (!rows[0]) return res.status(404).json({ error: 'Не найдено' });
+    const dl = issueAttachToken({ attId: req.params.attId, aud: 'staff', userId: req.user.id });
+    res.json({ url: `/api/tickets/attachments/download/${req.params.attId}?dl=${dl}` });
+  } catch { res.status(500).json({ error: 'Ошибка сервера' }); }
+});
+
+// POST /api/tickets/attachments/:attId/client-download-link — для клиента
+router.post('/attachments/:attId/client-download-link', clientAuth, async (req, res) => {
+  try {
+    // Проверяем что вложение принадлежит заявке клиента
+    const { rows } = await pool.query(
+      `SELECT a.id FROM attachments a JOIN tickets t ON a.ticket_id = t.id
+       WHERE a.id = $1 AND t.client_id = $2`,
+      [req.params.attId, req.client.id]
+    );
+    if (!rows[0]) return res.status(403).json({ error: 'Нет доступа' });
+    const dl = issueAttachToken({ attId: req.params.attId, aud: 'client', clientId: req.client.id });
+    res.json({ url: `/api/tickets/attachments/download/${req.params.attId}?dl=${dl}` });
+  } catch { res.status(500).json({ error: 'Ошибка сервера' }); }
+});
+
+// GET /api/tickets/attachments/download/:attId?dl=token[&inline=1] — скачать или превью
+router.get('/attachments/download/:attId', async (req, res) => {
+  try {
+    if (!req.query.dl) return res.status(401).json({ error: 'Не авторизован' });
+    const verified = verifyAttachToken(req.query.dl, req.params.attId, 'staff') || verifyAttachToken(req.query.dl, req.params.attId, 'client');
+    if (!verified) return res.status(401).json({ error: 'Ссылка устарела' });
+
+    const { rows } = await pool.query('SELECT * FROM attachments WHERE id = $1', [req.params.attId]);
+    if (!rows[0]) return res.status(404).json({ error: 'Файл не найден' });
+
+    // filepath в БД хранится как "/uploads/attachments/xxx" — берём только имя файла
+    const fname = path.basename(rows[0].filepath);
+    const filepath = path.join(__dirname, '../../uploads/attachments', fname);
+    if (!fs.existsSync(filepath)) return res.status(404).json({ error: 'Файл не найден на диске' });
+
+    if (req.query.inline) {
+      // Превью: отдать с inline-режимом, чтобы браузер отобразил
+      res.setHeader('Content-Type', rows[0].mimetype || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(rows[0].filename)}"`);
+      fs.createReadStream(filepath).pipe(res);
+    } else {
+      res.download(filepath, rows[0].filename);
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
 // GET /api/tickets/:id/attachments — список вложений заявки (сотрудник)

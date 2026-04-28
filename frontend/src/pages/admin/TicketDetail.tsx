@@ -5,7 +5,7 @@ import { getCache, setCache } from '../../api/cache'
 import { useAuth } from '../../context/AuthContext'
 import { formatDateTime, statusLabel, statusBadgeClass, STATUS_OPTIONS } from '../../utils/helpers'
 import toast from 'react-hot-toast'
-import { Send, Paperclip, Pencil, Trash2, File, Download, X as XIcon } from 'lucide-react'
+import { Send, Paperclip, Pencil, Trash2, File, Download, X as XIcon, Eye } from 'lucide-react'
 
 interface TicketStatus { key: string; label: string; color: string }
 interface Ticket {
@@ -359,10 +359,22 @@ export default function TicketDetail() {
                     <div className="text-xs font-medium text-[#18181B] truncate">{a.filename}</div>
                     <div className="text-[10px] text-[#A1A1AA]">{a.uploaded_by_name} · {(a.filesize / 1024).toFixed(0)} КБ</div>
                   </div>
-                  <a href={`${a.filepath}?token=${localStorage.getItem('token')}`} target="_blank" rel="noreferrer"
-                    className="text-[#003399] hover:text-[#0044cc] opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button type="button" title="Просмотр" onClick={async () => {
+                    try {
+                      const { data } = await api.post(`/tickets/attachments/${a.id}/download-link`)
+                      window.open(`${data.url}&inline=1`, '_blank', 'noopener')
+                    } catch { toast.error('Не удалось открыть') }
+                  }} className="text-[#003399] hover:text-[#0044cc] opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Eye size={14} />
+                  </button>
+                  <button type="button" title="Скачать" onClick={async () => {
+                    try {
+                      const { data } = await api.post(`/tickets/attachments/${a.id}/download-link`)
+                      window.location.href = data.url
+                    } catch { toast.error('Не удалось скачать') }
+                  }} className="text-[#003399] hover:text-[#0044cc] opacity-0 group-hover:opacity-100 transition-opacity">
                     <Download size={14} />
-                  </a>
+                  </button>
                 </div>
               ))}
             </div>
