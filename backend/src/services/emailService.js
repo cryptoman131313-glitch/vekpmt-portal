@@ -4,14 +4,16 @@ function createTransporter() {
   if (!process.env.SMTP_HOST) return null;
   const port = parseInt(process.env.SMTP_PORT) || 587;
   const isLocal = ['localhost', '127.0.0.1'].includes(process.env.SMTP_HOST);
-  const skipTls = isLocal || port === 25;
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: port,
     secure: false,
-    ignoreTLS: skipTls,
-    requireTLS: false,
-    tls: { rejectUnauthorized: false },
+    ignoreTLS: isLocal,            // плейн только на локалхосте
+    requireTLS: !isLocal,          // внешний SMTP — обязательно STARTTLS
+    tls: {
+      rejectUnauthorized: false,   // принимаем самоподписанный сертификат Hoster.ru
+      servername: process.env.SMTP_HOST,
+    },
     ...(isLocal ? {} : { auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } }),
   });
 }
