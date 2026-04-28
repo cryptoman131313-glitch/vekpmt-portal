@@ -132,6 +132,12 @@ router.post('/:id/approve', authMiddleware, requireRole('director', 'manager'), 
        reg.contact_phone, reg.contact_email, reg.password_hash]
     );
 
+    // Создаём учётную запись для входа в ЛК
+    await client.query(
+      `INSERT INTO client_users (client_id, email, password_hash, name) VALUES ($1, $2, $3, $4)`,
+      [clientRows[0].id, reg.contact_email, reg.password_hash, reg.contact_name]
+    );
+
     // Обновляем заявку
     await client.query(
       `UPDATE registrations SET status = 'approved', reviewed_by = $1, reviewed_at = NOW() WHERE id = $2`,
