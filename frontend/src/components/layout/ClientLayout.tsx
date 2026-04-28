@@ -47,12 +47,10 @@ export default function ClientLayout() {
         </div>
       </aside>
 
-      {/* SyntaxLab badge */}
+      {/* SyntexLab badge */}
       <a href="https://syntexlab.ru" target="_blank" rel="noopener noreferrer"
-        style={{ position: 'fixed', bottom: 16, right: 20, fontSize: 13, fontWeight: 500, color: '#71717A', textDecoration: 'none', zIndex: 50 }}
-        onMouseEnter={e => (e.currentTarget.style.color = '#CC0033')}
-        onMouseLeave={e => (e.currentTarget.style.color = '#71717A')}>
-        Разработано SyntexLab.ru
+        style={{ position: 'fixed', bottom: 16, right: 20, fontSize: 13, fontWeight: 500, color: '#71717A', textDecoration: 'none', zIndex: 50 }}>
+        Разработано <span style={{ color: '#000000', fontWeight: 700 }}>Syntex</span><span style={{ color: '#7CFC00', fontWeight: 700 }}>Lab</span>.ru
       </a>
 
       {/* Main */}
