@@ -785,7 +785,7 @@ router.get('/:id/history', authMiddleware, requireRole('director'), async (req, 
 
     // Сообщения для расчёта времени ответа
     const { rows: messages } = await pool.query(
-      `SELECT sender_type, sender_name, created_at FROM messages
+      `SELECT sender_type, created_at FROM messages
        WHERE ticket_id = $1 AND channel = 'appeal' AND is_deleted = false
        ORDER BY created_at ASC`,
       [req.params.id]
