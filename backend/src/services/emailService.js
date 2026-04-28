@@ -2,12 +2,15 @@ const nodemailer = require('nodemailer');
 
 function createTransporter() {
   if (!process.env.SMTP_HOST) return null;
+  const port = parseInt(process.env.SMTP_PORT) || 587;
   const isLocal = ['localhost', '127.0.0.1'].includes(process.env.SMTP_HOST);
+  const skipTls = isLocal || port === 25;
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT) || 587,
+    port: port,
     secure: false,
-    ignoreTLS: isLocal,
+    ignoreTLS: skipTls,
+    requireTLS: false,
     tls: { rejectUnauthorized: false },
     ...(isLocal ? {} : { auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } }),
   });
