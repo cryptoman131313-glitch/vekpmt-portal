@@ -519,6 +519,18 @@ router.post('/client/new', clientAuth, async (req, res) => {
   }
 });
 
+// GET /api/tickets/client/types — типы заявок для клиентов
+router.get('/client/types', clientAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, name, color FROM ticket_types WHERE is_active = true ORDER BY sort_order'
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 // GET /api/tickets/client/list — заявки клиента
 router.get('/client/list', clientAuth, async (req, res) => {
   try {

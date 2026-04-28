@@ -18,7 +18,7 @@ export default function ClientTicketNew() {
 
   useEffect(() => {
     api.get('/equipment/client/list').then(r => setEquipment(r.data)).catch(() => {})
-    api.get('/users/ticket-types').then(r => setTypes(r.data)).catch(() => {})
+    api.get('/tickets/client/types').then(r => setTypes(r.data)).catch(() => {})
   }, [])
 
   const isManual = form.equipment_id === '__manual__'
