@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import api from '../api/client'
+import { clearAllCache } from '../api/cache'
 
 interface User {
   id: string
@@ -51,6 +52,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginUser = async (email: string, password: string) => {
     const { data } = await api.post('/auth/login', { email, password })
     if (data.requires2fa) return data  // возвращаем для обработки 2FA в LoginPage
+    // Чистим кэш предыдущего пользователя/клиента — данные не должны утечь
+    clearAllCache()
     localStorage.setItem('token', data.token)
     localStorage.setItem('user', JSON.stringify(data.user))
     localStorage.removeItem('client')
@@ -61,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginClient = async (email: string, password: string) => {
     const { data } = await api.post('/auth/client/login', { email, password })
+    clearAllCache()
     localStorage.setItem('token', data.token)
     localStorage.setItem('client', JSON.stringify(data.client))
     localStorage.removeItem('user')
@@ -78,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const logout = () => {
+    clearAllCache()
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     localStorage.removeItem('client')

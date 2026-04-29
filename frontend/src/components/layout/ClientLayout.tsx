@@ -50,7 +50,7 @@ export default function ClientLayout() {
       {/* SyntexLab badge */}
       <a href="https://syntexlab.ru" target="_blank" rel="noopener noreferrer"
         style={{ position: 'fixed', bottom: 16, right: 20, fontSize: 13, fontWeight: 500, color: '#71717A', textDecoration: 'none', zIndex: 50 }}>
-        Разработано <span style={{ color: '#000000', fontWeight: 700 }}>Syntex</span><span style={{ color: '#7CFC00', fontWeight: 700 }}>Lab</span>.ru
+        Разработано <span style={{ color: '#000000', fontWeight: 700 }}>Syntex</span><span style={{ color: '#7CFC00', fontWeight: 700 }}>Lab</span><span style={{ color: '#000000', fontWeight: 700 }}>.ru</span>
       </a>
 
       {/* Main */}
