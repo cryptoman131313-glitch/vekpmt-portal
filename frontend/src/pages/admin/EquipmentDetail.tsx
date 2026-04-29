@@ -84,7 +84,7 @@ export default function EquipmentDetail() {
           <ArrowLeft size={22} />
         </button>
         <h1 className="text-2xl font-bold text-[#18181B] flex-1">{eq.model}</h1>
-        {user?.role === 'director' && (
+        {(user?.role === 'director' || user?.role === 'manager') && (
           <button onClick={() => setShowDelete(true)} className="btn btn-danger gap-1.5">
             <Trash2 size={14} /> Удалить
           </button>

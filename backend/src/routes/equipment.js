@@ -112,9 +112,9 @@ router.patch('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// DELETE /api/equipment/:id — удалить оборудование (только директор)
+// DELETE /api/equipment/:id — удалить оборудование (директор и менеджер)
 // Связанные заявки сохранят историю, но потеряют ссылку на оборудование (ON DELETE SET NULL)
-router.delete('/:id', authMiddleware, requireRole('director'), async (req, res) => {
+router.delete('/:id', authMiddleware, requireRole('director', 'manager'), async (req, res) => {
   try {
     const { rowCount } = await pool.query('DELETE FROM equipment WHERE id = $1', [req.params.id]);
     if (rowCount === 0) return res.status(404).json({ error: 'Не найдено' });
