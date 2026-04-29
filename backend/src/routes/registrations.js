@@ -181,4 +181,15 @@ router.post('/:id/reject', authMiddleware, requireRole('director', 'manager'), a
   }
 });
 
+// DELETE /api/registrations/:id — удалить заявку (только директор)
+router.delete('/:id', authMiddleware, requireRole('director'), async (req, res) => {
+  try {
+    const { rowCount } = await pool.query('DELETE FROM registrations WHERE id = $1', [req.params.id]);
+    if (rowCount === 0) return res.status(404).json({ error: 'Заявка не найдена' });
+    res.json({ message: 'Заявка удалена' });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 module.exports = router;

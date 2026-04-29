@@ -1,6 +1,6 @@
 const express = require('express');
 const pool = require('../db/pool');
-const { authMiddleware, clientAuth } = require('../middleware/auth');
+const { authMiddleware, clientAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -108,6 +108,19 @@ router.patch('/:id', authMiddleware, async (req, res) => {
     if (!rows[0]) return res.status(404).json({ error: 'Не найдено' });
     res.json(rows[0]);
   } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// DELETE /api/equipment/:id — удалить оборудование (только директор)
+// Связанные заявки сохранят историю, но потеряют ссылку на оборудование (ON DELETE SET NULL)
+router.delete('/:id', authMiddleware, requireRole('director'), async (req, res) => {
+  try {
+    const { rowCount } = await pool.query('DELETE FROM equipment WHERE id = $1', [req.params.id]);
+    if (rowCount === 0) return res.status(404).json({ error: 'Не найдено' });
+    res.json({ message: 'Оборудование удалено' });
+  } catch (err) {
+    console.error('[EQUIPMENT DELETE]', err);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });

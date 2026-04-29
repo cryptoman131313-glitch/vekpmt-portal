@@ -3,7 +3,8 @@ import api from '../../api/client'
 import { getCache, setCache } from '../../api/cache'
 import { formatDate } from '../../utils/helpers'
 import toast from 'react-hot-toast'
-import { CheckCircle, XCircle } from 'lucide-react'
+import { CheckCircle, XCircle, Trash2 } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 
 interface Reg {
   id: string; company_name: string; inn: string; contact_name: string
@@ -18,10 +19,12 @@ const TABS = [
 ]
 
 export default function RegistrationsList() {
+  const { user } = useAuth()
   const [tab, setTab] = useState('pending')
   const [items, setItems] = useState<Reg[]>([])
   const [rejectId, setRejectId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const load = () => {
     const key = `registrations_${tab}`
@@ -49,6 +52,16 @@ export default function RegistrationsList() {
       setRejectReason('')
       load()
     } catch { toast.error('Ошибка') }
+  }
+
+  const remove = async () => {
+    if (!deleteId) return
+    try {
+      await api.delete(`/registrations/${deleteId}`)
+      toast.success('Заявка удалена')
+      setDeleteId(null)
+      load()
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Ошибка') }
   }
 
   return (
@@ -109,12 +122,34 @@ export default function RegistrationsList() {
                       </button>
                     </div>
                   )}
+                  {tab === 'rejected' && user?.role === 'director' && (
+                    <div className="flex-shrink-0">
+                      <button onClick={() => setDeleteId(r.id)}
+                        className="btn btn-danger gap-1.5" title="Удалить заявку">
+                        <Trash2 size={15} /> Удалить
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Delete confirmation */}
+      {deleteId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border border-[#E4E4E7] w-full max-w-md p-6 shadow-lg">
+            <h3 className="font-bold text-[#18181B] mb-2">Удалить заявку?</h3>
+            <p className="text-sm text-[#71717A] mb-4">Заявка на регистрацию будет удалена безвозвратно.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteId(null)} className="btn btn-secondary flex-1 justify-center">Отмена</button>
+              <button onClick={remove} className="btn btn-danger flex-[2] justify-center">Удалить</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reject modal */}
       {rejectId && (

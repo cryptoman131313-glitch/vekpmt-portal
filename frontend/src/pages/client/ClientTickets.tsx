@@ -5,7 +5,7 @@ import { getCache, setCache } from '../../api/cache'
 import { formatDate, getStatusInfo, statusBadgeStyle } from '../../utils/helpers'
 import { Plus } from 'lucide-react'
 
-interface Ticket { id: number; type_name: string; type_color: string; type_statuses?: any[]; status: string; created_at: string; equipment_model: string; description: string }
+interface Ticket { id: number; type_name: string; type_color: string; type_statuses?: any[]; status: string; created_at: string; equipment_model: string; equipment_manufacturer: string; equipment_serial: string; description: string }
 
 export default function ClientTickets() {
   const navigate = useNavigate()
@@ -31,14 +31,14 @@ export default function ClientTickets() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[#E4E4E7] bg-[#FAFAFA]">
-                {['#', 'Дата', 'Оборудование', 'Тип', 'Описание', 'Статус'].map(h => (
+                {['#', 'Дата', 'Марка', 'Модель', 'Серийный №', 'Тип', 'Описание', 'Статус'].map(h => (
                   <th key={h} className="px-4 py-3 text-left font-semibold text-[#71717A]">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {tickets.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-[#71717A]">
+                <tr><td colSpan={8} className="px-4 py-12 text-center text-[#71717A]">
                   У вас пока нет заявок. <button onClick={() => navigate('/client/tickets/new')} className="text-[#003399] underline">Создать первую?</button>
                 </td></tr>
               )}
@@ -47,7 +47,9 @@ export default function ClientTickets() {
                   className="border-b border-[#F4F4F5] hover:bg-[#FAFAFA] cursor-pointer transition-colors">
                   <td className="px-4 py-3 font-bold text-[#003399]">#{t.id}</td>
                   <td className="px-4 py-3 text-[#71717A] whitespace-nowrap">{formatDate(t.created_at)}</td>
+                  <td className="px-4 py-3 text-[#71717A]">{t.equipment_manufacturer || '—'}</td>
                   <td className="px-4 py-3">{t.equipment_model || '—'}</td>
+                  <td className="px-4 py-3 text-[#71717A]">{t.equipment_serial || '—'}</td>
                   <td className="px-4 py-3">
                     <span className="text-xs font-semibold px-2 py-0.5 rounded"
                       style={{ background: t.type_color + '20', color: t.type_color }}>{t.type_name || '—'}</span>

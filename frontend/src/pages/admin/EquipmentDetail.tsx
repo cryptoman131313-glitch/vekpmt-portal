@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import api from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
-import { Pencil, Save, X, UserPlus, ArrowLeft } from 'lucide-react'
+import { Pencil, Save, X, UserPlus, ArrowLeft, Trash2 } from 'lucide-react'
 
 interface Equipment { id: string; model: string; manufacturer: string; serial_number: string; notes: string; company_name: string; client_id: string | null; contact_name: string; characteristics: Record<string, string> }
 interface EquipmentField { id: string; name: string; unit: string }
@@ -21,6 +21,7 @@ export default function EquipmentDetail() {
   const [clients, setClients] = useState<Client[]>([])
   const [showAssign, setShowAssign] = useState(false)
   const [assignClientId, setAssignClientId] = useState('')
+  const [showDelete, setShowDelete] = useState(false)
 
   const canEdit = user?.role === 'director' || user?.role === 'manager' && user?.permissions?.can_edit_equipment
 
@@ -63,6 +64,16 @@ export default function EquipmentDetail() {
     } catch { toast.error('Ошибка') }
   }
 
+  const handleDelete = async () => {
+    try {
+      await api.delete(`/equipment/${id}`)
+      toast.success('Оборудование удалено')
+      navigate('/admin/equipment')
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Ошибка')
+    }
+  }
+
   if (!eq) return <div className="p-6 text-[#71717A]">Загрузка...</div>
 
   return (
@@ -72,7 +83,12 @@ export default function EquipmentDetail() {
           className="text-[#71717A] hover:text-[#18181B] transition-colors flex-shrink-0">
           <ArrowLeft size={22} />
         </button>
-        <h1 className="text-2xl font-bold text-[#18181B]">{eq.model}</h1>
+        <h1 className="text-2xl font-bold text-[#18181B] flex-1">{eq.model}</h1>
+        {user?.role === 'director' && (
+          <button onClick={() => setShowDelete(true)} className="btn btn-danger gap-1.5">
+            <Trash2 size={14} /> Удалить
+          </button>
+        )}
       </div>
 
       <div className="card p-5 mb-4">
@@ -172,6 +188,20 @@ export default function EquipmentDetail() {
                 )}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation */}
+      {showDelete && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border border-[#E4E4E7] w-full max-w-md p-6 shadow-lg">
+            <h3 className="font-bold text-[#18181B] mb-2">Удалить оборудование?</h3>
+            <p className="text-sm text-[#71717A] mb-4">«{eq.model}» будет удалено безвозвратно. Связанные заявки сохранятся, но потеряют ссылку на это оборудование.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDelete(false)} className="btn btn-secondary flex-1 justify-center">Отмена</button>
+              <button onClick={handleDelete} className="btn btn-danger flex-[2] justify-center">Удалить</button>
+            </div>
           </div>
         </div>
       )}

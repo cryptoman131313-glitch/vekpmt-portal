@@ -9,6 +9,7 @@ interface Ticket {
   id: number; company_name: string; type_name: string; type_color: string
   type_statuses?: any[]
   status: string; created_at: string; equipment_model: string
+  equipment_manufacturer: string
   equipment_serial: string; serial_manual: string; assigned_name: string
 }
 interface TicketType { id: string; name: string; statuses?: { id: string; name: string; color: string }[] }
@@ -88,14 +89,14 @@ export default function TicketsList() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[#E4E4E7] bg-[#FAFAFA]">
-                {['#', 'Дата', 'Клиент', 'Оборудование', 'Серийный №', 'Тип', 'Инженер', 'Статус'].map(h => (
+                {['#', 'Дата', 'Клиент', 'Марка', 'Модель', 'Серийный №', 'Тип', 'Инженер', 'Статус'].map(h => (
                   <th key={h} className="px-4 py-3 text-left font-semibold text-[#71717A] whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {tickets.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-[#71717A]">Заявок не найдено</td></tr>
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-[#71717A]">Заявок не найдено</td></tr>
               )}
               {tickets.map(t => (
                 <tr key={t.id} onClick={() => navigate(`/admin/tickets/${t.id}`)}
@@ -103,6 +104,7 @@ export default function TicketsList() {
                   <td className="px-4 py-3 font-bold text-[#CC0033]">#{t.id}</td>
                   <td className="px-4 py-3 text-[#71717A] whitespace-nowrap">{formatDate(t.created_at)}</td>
                   <td className="px-4 py-3 font-medium">{t.company_name || '—'}</td>
+                  <td className="px-4 py-3 text-[#71717A]">{t.equipment_manufacturer || '—'}</td>
                   <td className="px-4 py-3 text-[#71717A]">{t.equipment_model || '—'}</td>
                   <td className="px-4 py-3 text-[#71717A]">{t.equipment_serial || t.serial_manual || '—'}</td>
                   <td className="px-4 py-3">

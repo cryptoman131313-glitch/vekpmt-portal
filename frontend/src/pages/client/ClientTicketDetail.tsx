@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 import { Send, Paperclip, File, Download, Eye } from 'lucide-react'
 
 interface Message { id: string; sender_type: string; sender_name: string; sender_role: string; content: string; created_at: string }
-interface Ticket { id: number; type_name: string; type_color: string; type_statuses?: any[]; status: string; description: string; created_at: string; equipment_model: string; equipment_serial: string }
+interface Ticket { id: number; type_name: string; type_color: string; type_statuses?: any[]; status: string; description: string; created_at: string; equipment_model: string; equipment_manufacturer: string; equipment_serial: string }
 interface Attachment { id: string; filename: string; filepath: string; filesize: number; mimetype: string; uploaded_by_name: string; created_at: string }
 
 export default function ClientTicketDetail() {
@@ -96,10 +96,22 @@ export default function ClientTicketDetail() {
               </span>
             </div>
           )}
+          {ticket.equipment_manufacturer && (
+            <div>
+              <div className="text-xs font-semibold text-[#71717A] mb-1">Марка</div>
+              <div className="text-sm text-[#18181B]">{ticket.equipment_manufacturer}</div>
+            </div>
+          )}
           {ticket.equipment_model && (
             <div>
-              <div className="text-xs font-semibold text-[#71717A] mb-1">Оборудование</div>
+              <div className="text-xs font-semibold text-[#71717A] mb-1">Модель</div>
               <div className="text-sm text-[#18181B]">{ticket.equipment_model}</div>
+            </div>
+          )}
+          {ticket.equipment_serial && (
+            <div>
+              <div className="text-xs font-semibold text-[#71717A] mb-1">Серийный номер</div>
+              <div className="text-sm text-[#18181B]">{ticket.equipment_serial}</div>
             </div>
           )}
           <div>

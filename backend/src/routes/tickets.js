@@ -123,7 +123,7 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT t.*, c.company_name, c.contact_name, c.contact_phone,
-              e.model as equipment_model, e.serial_number as equipment_serial,
+              e.model as equipment_model, e.manufacturer as equipment_manufacturer, e.serial_number as equipment_serial,
               tt.name as type_name, tt.color as type_color, tt.statuses as type_statuses,
               u.name as assigned_name
        FROM tickets t
@@ -550,7 +550,7 @@ router.get('/client/types', clientAuth, async (req, res) => {
 router.get('/client/list', clientAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT t.*, e.model as equipment_model, tt.name as type_name, tt.color as type_color, tt.statuses as type_statuses
+      `SELECT t.*, e.model as equipment_model, e.manufacturer as equipment_manufacturer, e.serial_number as equipment_serial, tt.name as type_name, tt.color as type_color, tt.statuses as type_statuses
        FROM tickets t
        LEFT JOIN equipment e ON t.equipment_id = e.id
        LEFT JOIN ticket_types tt ON t.type_id = tt.id
@@ -760,6 +760,18 @@ router.get('/:id/attachments/client', clientAuth, async (req, res) => {
     );
     res.json(rows);
   } catch { res.json([]); }
+});
+
+// DELETE /api/tickets/:id — удалить заявку (только директор)
+router.delete('/:id', authMiddleware, requireRole('director'), async (req, res) => {
+  try {
+    const { rowCount } = await pool.query('DELETE FROM tickets WHERE id = $1', [req.params.id]);
+    if (rowCount === 0) return res.status(404).json({ error: 'Заявка не найдена' });
+    res.json({ message: 'Заявка удалена' });
+  } catch (err) {
+    console.error('[TICKET DELETE]', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
 // GET /api/tickets/:id/history — история изменений (только руководитель)

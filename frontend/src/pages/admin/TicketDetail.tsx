@@ -45,6 +45,7 @@ export default function TicketDetail() {
   const [historyStats, setHistoryStats] = useState<HistoryStats | null>(null)
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([])
   const [assignedTo, setAssignedTo] = useState<string>('')
+  const [showDelete, setShowDelete] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const msgCache = useRef<Record<string, Message[]>>({})
@@ -161,6 +162,16 @@ export default function TicketDetail() {
     e.target.value = ''
   }
 
+  const handleDeleteTicket = async () => {
+    try {
+      await api.delete(`/tickets/${id}`)
+      toast.success('Заявка удалена')
+      navigate('/admin/tickets')
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Ошибка')
+    }
+  }
+
   if (!ticket) return <div className="p-6 text-[#71717A]">Загрузка...</div>
 
   return (
@@ -192,6 +203,11 @@ export default function TicketDetail() {
               })
             })()}
           </select>
+          {user?.role === 'director' && (
+            <button onClick={() => setShowDelete(true)} className="btn btn-danger gap-1.5" title="Удалить заявку">
+              <Trash2 size={14} /> Удалить
+            </button>
+          )}
         </div>
       </div>
 
@@ -202,7 +218,8 @@ export default function TicketDetail() {
           <InfoItem label="Контактное лицо" value={ticket.contact_name} />
           <InfoItem label="Телефон" value={ticket.contact_phone} />
           <InfoItem label="Email" value={ticket.contact_email} />
-          <InfoItem label="Оборудование" value={ticket.equipment_model || ticket.serial_manual || '—'} />
+          <InfoItem label="Марка" value={ticket.manufacturer || '—'} />
+          <InfoItem label="Модель" value={ticket.equipment_model || '—'} />
           <InfoItem label="Серийный номер" value={ticket.equipment_serial || ticket.serial_manual || '—'} />
           <InfoItem label="Тип заявки" value={ticket.type_name} />
           <InfoItem label="Назначен" value={
@@ -387,6 +404,22 @@ export default function TicketDetail() {
           </div>
         )}
       </div>
+
+      {/* Удаление заявки */}
+      {showDelete && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border border-[#E4E4E7] w-full max-w-md p-6 shadow-lg">
+            <h3 className="font-bold text-[#18181B] mb-2">Удалить заявку #{ticket.id}?</h3>
+            <p className="text-sm text-[#71717A] mb-4">
+              Заявка будет удалена безвозвратно вместе с перепиской, вложениями и историей изменений.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDelete(false)} className="btn btn-secondary flex-1 justify-center">Отмена</button>
+              <button onClick={handleDeleteTicket} className="btn btn-danger flex-[2] justify-center">Удалить</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
