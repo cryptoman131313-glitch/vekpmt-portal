@@ -55,8 +55,23 @@ app.use('/uploads', (req, res, next) => {
 
 // Rate limiting (disabled in test environment)
 if (process.env.NODE_ENV !== 'test') {
-  const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
-  const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Слишком много попыток, попробуйте позже' } });
+  // Общий лимит — увеличен до 600 (по 1 запросу в 1.5 сек), т.к. SWR-кэш
+  // делает много фоновых обновлений на любой странице
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 600,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Слишком много запросов, попробуйте позже' },
+  });
+  // Лимит на /api/auth — защита от перебора паролей
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Слишком много попыток входа, попробуйте через 15 минут' },
+  });
   app.use('/api/', limiter);
   app.use('/api/auth', authLimiter);
 }

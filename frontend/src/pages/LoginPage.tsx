@@ -42,7 +42,12 @@ export default function LoginPage() {
         navigate('/client/tickets')
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Неверный email или пароль')
+      // 429 — превышен лимит входов, отдельное понятное сообщение
+      if (err.response?.status === 429) {
+        toast.error(err.response?.data?.error || 'Слишком много попыток, попробуйте через 15 минут')
+      } else {
+        toast.error(err.response?.data?.error || 'Неверный email или пароль')
+      }
     } finally {
       setLoading(false)
     }
