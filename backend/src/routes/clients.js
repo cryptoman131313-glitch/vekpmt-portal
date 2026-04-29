@@ -201,6 +201,92 @@ router.patch('/me/billing', clientAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Ошибка сервера' }); }
 });
 
+// ─── Управление сотрудниками клиента (учётками для входа в ЛК) ───────────────
+
+// GET /api/clients/:id/users — список учёток клиента
+router.get('/:id/users', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, email, name, is_active, created_at
+       FROM client_users
+       WHERE client_id = $1
+       ORDER BY created_at ASC`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// POST /api/clients/:id/users — добавить учётку клиента
+router.post('/:id/users', authMiddleware, async (req, res) => {
+  const { name, email, password } = req.body;
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'Заполните все поля' });
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Пароль минимум 8 символов' });
+  }
+  try {
+    // Проверяем что клиент существует
+    const { rows: cli } = await pool.query('SELECT id FROM clients WHERE id = $1', [req.params.id]);
+    if (!cli[0]) return res.status(404).json({ error: 'Клиент не найден' });
+
+    const password_hash = await bcrypt.hash(password, 12);
+    const { rows } = await pool.query(
+      `INSERT INTO client_users (client_id, email, password_hash, name, is_active)
+       VALUES ($1, $2, $3, $4, true)
+       RETURNING id, email, name, is_active, created_at`,
+      [req.params.id, email.toLowerCase().trim(), password_hash, name]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Учётная запись с таким email уже существует' });
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// PATCH /api/clients/:id/users/:userId — обновить учётку (имя или is_active)
+router.patch('/:id/users/:userId', authMiddleware, async (req, res) => {
+  const { name, is_active } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE client_users SET
+        name = COALESCE($1, name),
+        is_active = COALESCE($2, is_active),
+        updated_at = NOW()
+       WHERE id = $3 AND client_id = $4
+       RETURNING id, email, name, is_active`,
+      [name ?? null, typeof is_active === 'boolean' ? is_active : null, req.params.userId, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Учётка не найдена' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// POST /api/clients/:id/users/:userId/reset-password — сотрудник сбрасывает клиенту пароль
+router.post('/:id/users/:userId/reset-password', authMiddleware, async (req, res) => {
+  const { password } = req.body;
+  if (!password || password.length < 8) {
+    return res.status(400).json({ error: 'Пароль минимум 8 символов' });
+  }
+  try {
+    const password_hash = await bcrypt.hash(password, 12);
+    const { rowCount } = await pool.query(
+      `UPDATE client_users SET password_hash = $1, updated_at = NOW()
+       WHERE id = $2 AND client_id = $3`,
+      [password_hash, req.params.userId, req.params.id]
+    );
+    if (rowCount === 0) return res.status(404).json({ error: 'Учётка не найдена' });
+    res.json({ message: 'Пароль обновлён' });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 // DELETE /api/clients/:id — удалить клиента (только руководитель)
 router.delete('/:id', authMiddleware, async (req, res) => {
   if (req.user.role !== 'director') return res.status(403).json({ error: 'Нет доступа' });
