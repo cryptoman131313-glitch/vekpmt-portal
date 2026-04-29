@@ -67,26 +67,33 @@ const STANDARD_STATUS_COLORS: Record<string, string> = {
 }
 
 // Возвращает реальные label и color для статуса.
-// Сначала ищет в type_statuses типа заявки (кастомные с цветом из настроек),
-// потом fallback на стандартные.
+// Поддерживает форматы: строка ("new"), объект ({key, label, color}).
+// Если объект «сломанный» (label === key, цвет дефолтный) — берёт стандартные значения.
 export function getStatusInfo(status: string, typeStatuses?: any[]): { label: string; color: string } {
+  const standardLabel = statusLabel(status)
+  const standardColor = STANDARD_STATUS_COLORS[status] || '#6B7280'
+  const isStandard = status in STANDARD_STATUS_COLORS
+
   if (Array.isArray(typeStatuses)) {
     for (const s of typeStatuses) {
+      // Строка — стандартный статус
+      if (typeof s === 'string' && s === status) {
+        return { label: standardLabel, color: standardColor }
+      }
+      // Объект — кастомный или сломанный стандартный
       if (typeof s === 'object' && s !== null) {
         const key = s.key || s.value
         if (key === status) {
-          return {
-            label: s.label || statusLabel(status),
-            color: s.color || STANDARD_STATUS_COLORS[status] || '#6B7280',
-          }
+          // Если для стандартного статуса label совпадает с key (англ.) — использовать русский
+          const label = (isStandard && (!s.label || s.label === key)) ? standardLabel : (s.label || standardLabel)
+          // Если для стандартного статуса цвет дефолтный (#6B7280) — использовать стандартный
+          const color = (isStandard && (!s.color || s.color === '#6B7280')) ? standardColor : (s.color || standardColor)
+          return { label, color }
         }
       }
     }
   }
-  return {
-    label: statusLabel(status),
-    color: STANDARD_STATUS_COLORS[status] || '#6B7280',
-  }
+  return { label: standardLabel, color: standardColor }
 }
 
 // Inline-стиль бейджа на основе цвета статуса

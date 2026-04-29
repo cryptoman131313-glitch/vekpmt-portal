@@ -4,6 +4,7 @@ import { getCache, setCache } from '../../api/cache'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, Trash2, UserPlus, ChevronDown, ChevronRight, Check, X, Camera } from 'lucide-react'
 import AvatarCropModal from '../../components/AvatarCropModal'
+import { getStatusInfo } from '../../utils/helpers'
 
 interface User {
   id: string; name: string; email: string; role: string;
@@ -452,7 +453,20 @@ function TypesConstructor() {
       setTypes(r.data.map((t: any) => ({
         ...t,
         statuses: Array.isArray(t.statuses)
-          ? t.statuses.map((s: any) => typeof s === 'string' ? { key: s, label: s, color: '#6B7280' } : s)
+          ? t.statuses.map((s: any) => {
+              if (typeof s === 'string') {
+                // Стандартный статус — берём русский label и стандартный цвет
+                const info = getStatusInfo(s, [])
+                return { key: s, label: info.label, color: info.color }
+              }
+              // Объект — если label/color «сломанные» (англ. ключ как label, серый цвет),
+              // подменяем на стандартные русские
+              const key = s.key || s.value
+              const info = getStatusInfo(key, [])
+              const fixedLabel = (!s.label || s.label === key) ? info.label : s.label
+              const fixedColor = (!s.color || s.color === '#6B7280') ? info.color : s.color
+              return { key, label: fixedLabel, color: fixedColor }
+            })
           : [],
         auto_statuses: t.auto_statuses || {}
       })))
