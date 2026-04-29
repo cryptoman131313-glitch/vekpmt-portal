@@ -55,3 +55,52 @@ export const STATUS_OPTIONS = [
   { value: 'done', label: 'Выполнена' },
   { value: 'cancelled', label: 'Отменена' },
 ]
+
+// Цвета стандартных статусов (используются когда кастомный цвет не задан)
+const STANDARD_STATUS_COLORS: Record<string, string> = {
+  new: '#6B7280',
+  in_progress: '#2563EB',
+  waiting_parts: '#D97706',
+  waiting_client: '#7C3AED',
+  done: '#16A34A',
+  cancelled: '#DC2626',
+}
+
+// Возвращает реальные label и color для статуса.
+// Сначала ищет в type_statuses типа заявки (кастомные с цветом из настроек),
+// потом fallback на стандартные.
+export function getStatusInfo(status: string, typeStatuses?: any[]): { label: string; color: string } {
+  if (Array.isArray(typeStatuses)) {
+    for (const s of typeStatuses) {
+      if (typeof s === 'object' && s !== null) {
+        const key = s.key || s.value
+        if (key === status) {
+          return {
+            label: s.label || statusLabel(status),
+            color: s.color || STANDARD_STATUS_COLORS[status] || '#6B7280',
+          }
+        }
+      }
+    }
+  }
+  return {
+    label: statusLabel(status),
+    color: STANDARD_STATUS_COLORS[status] || '#6B7280',
+  }
+}
+
+// Inline-стиль бейджа на основе цвета статуса
+export function statusBadgeStyle(color: string) {
+  return {
+    display: 'inline-flex' as const,
+    alignItems: 'center' as const,
+    gap: 5,
+    padding: '2px 10px',
+    borderRadius: 12,
+    fontSize: 12,
+    fontWeight: 600,
+    background: color + '20',  // 12% прозрачность
+    color: color,
+    whiteSpace: 'nowrap' as const,
+  }
+}

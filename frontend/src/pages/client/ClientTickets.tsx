@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/client'
 import { getCache, setCache } from '../../api/cache'
-import { formatDate, statusLabel, statusBadgeClass } from '../../utils/helpers'
+import { formatDate, getStatusInfo, statusBadgeStyle } from '../../utils/helpers'
 import { Plus } from 'lucide-react'
 
-interface Ticket { id: number; type_name: string; type_color: string; status: string; created_at: string; equipment_model: string; description: string }
+interface Ticket { id: number; type_name: string; type_color: string; type_statuses?: any[]; status: string; created_at: string; equipment_model: string; description: string }
 
 export default function ClientTickets() {
   const navigate = useNavigate()
@@ -53,7 +53,13 @@ export default function ClientTickets() {
                       style={{ background: t.type_color + '20', color: t.type_color }}>{t.type_name || '—'}</span>
                   </td>
                   <td className="px-4 py-3 text-[#71717A] max-w-[200px] truncate">{t.description}</td>
-                  <td className="px-4 py-3"><span className={`badge ${statusBadgeClass(t.status)}`}>{statusLabel(t.status)}</span></td>
+                  <td className="px-4 py-3">{(() => {
+                    const info = getStatusInfo(t.status, t.type_statuses)
+                    return <span style={statusBadgeStyle(info.color)}>
+                      <span style={{width:6,height:6,borderRadius:'50%',background:info.color}} />
+                      {info.label}
+                    </span>
+                  })()}</td>
                 </tr>
               ))}
             </tbody>

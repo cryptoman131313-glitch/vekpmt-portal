@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import api from '../../api/client'
 import { getCache, setCache } from '../../api/cache'
 import { useAuth } from '../../context/AuthContext'
-import { formatDateTime, statusLabel, statusBadgeClass, STATUS_OPTIONS } from '../../utils/helpers'
+import { formatDateTime, statusLabel, STATUS_OPTIONS, getStatusInfo, statusBadgeStyle } from '../../utils/helpers'
 import toast from 'react-hot-toast'
 import { Send, Paperclip, Pencil, Trash2, File, Download, X as XIcon, Eye } from 'lucide-react'
 
@@ -171,7 +171,13 @@ export default function TicketDetail() {
           <h1 className="text-2xl font-bold text-[#18181B]">Заявка #{ticket.id}</h1>
         </div>
         <div className="flex items-center gap-3">
-          <span className={`badge ${statusBadgeClass(status)}`}>{statusLabel(status)}</span>
+          {(() => {
+            const info = getStatusInfo(status, ticket.type_statuses)
+            return <span style={statusBadgeStyle(info.color)}>
+              <span style={{width:6,height:6,borderRadius:'50%',background:info.color}} />
+              {info.label}
+            </span>
+          })()}
           <select className="form-control" style={{ width: 'auto', minWidth: 200 }}
             value={status} onChange={e => handleStatusChange(e.target.value)}>
             {(() => {

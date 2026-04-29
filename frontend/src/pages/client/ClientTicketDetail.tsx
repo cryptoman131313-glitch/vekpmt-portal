@@ -1,12 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import api from '../../api/client'
-import { formatDateTime, statusLabel, statusBadgeClass } from '../../utils/helpers'
+import { formatDateTime, getStatusInfo, statusBadgeStyle } from '../../utils/helpers'
 import toast from 'react-hot-toast'
 import { Send, Paperclip, File, Download, Eye } from 'lucide-react'
 
 interface Message { id: string; sender_type: string; sender_name: string; sender_role: string; content: string; created_at: string }
-interface Ticket { id: number; type_name: string; type_color: string; status: string; description: string; created_at: string; equipment_model: string; equipment_serial: string }
+interface Ticket { id: number; type_name: string; type_color: string; type_statuses?: any[]; status: string; description: string; created_at: string; equipment_model: string; equipment_serial: string }
 interface Attachment { id: string; filename: string; filepath: string; filesize: number; mimetype: string; uploaded_by_name: string; created_at: string }
 
 export default function ClientTicketDetail() {
@@ -75,7 +75,13 @@ export default function ClientTicketDetail() {
     <div className="p-6">
       <div className="flex items-start justify-between mb-6">
         <h1 className="text-2xl font-bold text-[#18181B]">Заявка #{ticket.id}</h1>
-        <span className={`badge ${statusBadgeClass(ticket.status)}`}>{statusLabel(ticket.status)}</span>
+        {(() => {
+          const info = getStatusInfo(ticket.status, ticket.type_statuses)
+          return <span style={statusBadgeStyle(info.color)}>
+            <span style={{width:6,height:6,borderRadius:'50%',background:info.color}} />
+            {info.label}
+          </span>
+        })()}
       </div>
 
       {/* Info */}

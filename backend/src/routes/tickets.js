@@ -124,7 +124,7 @@ router.get('/', authMiddleware, async (req, res) => {
     const { rows } = await pool.query(
       `SELECT t.*, c.company_name, c.contact_name, c.contact_phone,
               e.model as equipment_model, e.serial_number as equipment_serial,
-              tt.name as type_name, tt.color as type_color,
+              tt.name as type_name, tt.color as type_color, tt.statuses as type_statuses,
               u.name as assigned_name
        FROM tickets t
        LEFT JOIN clients c ON t.client_id = c.id
@@ -550,7 +550,7 @@ router.get('/client/types', clientAuth, async (req, res) => {
 router.get('/client/list', clientAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT t.*, e.model as equipment_model, tt.name as type_name, tt.color as type_color
+      `SELECT t.*, e.model as equipment_model, tt.name as type_name, tt.color as type_color, tt.statuses as type_statuses
        FROM tickets t
        LEFT JOIN equipment e ON t.equipment_id = e.id
        LEFT JOIN ticket_types tt ON t.type_id = tt.id
