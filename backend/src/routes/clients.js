@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const pool = require('../db/pool');
 const { authMiddleware, clientAuth } = require('../middleware/auth');
+const { sendClientUserWelcome } = require('../services/emailService');
 
 const router = express.Router();
 
@@ -229,18 +230,26 @@ router.post('/:id/users', authMiddleware, async (req, res) => {
     return res.status(400).json({ error: 'Пароль минимум 8 символов' });
   }
   try {
-    // Проверяем что клиент существует
-    const { rows: cli } = await pool.query('SELECT id FROM clients WHERE id = $1', [req.params.id]);
+    // Проверяем что клиент существует, заодно достаём имя организации для письма
+    const { rows: cli } = await pool.query('SELECT id, company_name FROM clients WHERE id = $1', [req.params.id]);
     if (!cli[0]) return res.status(404).json({ error: 'Клиент не найден' });
 
     const password_hash = await bcrypt.hash(password, 12);
+    const cleanEmail = email.toLowerCase().trim();
     const { rows } = await pool.query(
       `INSERT INTO client_users (client_id, email, password_hash, name, is_active)
        VALUES ($1, $2, $3, $4, true)
        RETURNING id, email, name, is_active, created_at`,
-      [req.params.id, email.toLowerCase().trim(), password_hash, name]
+      [req.params.id, cleanEmail, password_hash, name]
     );
     res.status(201).json(rows[0]);
+
+    // Отправляем письмо клиенту с данными для входа (fire-and-forget)
+    sendClientUserWelcome(cleanEmail, {
+      name,
+      password,
+      company_name: cli[0].company_name,
+    }).catch(() => {});
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Учётная запись с таким email уже существует' });
     res.status(500).json({ error: 'Ошибка сервера' });

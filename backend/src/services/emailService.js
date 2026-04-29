@@ -114,6 +114,22 @@ async function sendRegistrationRejected(toEmail, data) {
   await send(toEmail, 'Заявка на регистрацию отклонена — Эффективная Техника', html);
 }
 
+// ─── 5b. Новая учётка клиента (создана сотрудником вручную) → клиенту ───────
+async function sendClientUserWelcome(toEmail, data) {
+  const html = base(`
+    <h2 style="color:#18181B;margin:0 0 12px;">Доступ в личный кабинет</h2>
+    <p style="color:#52525B;">Здравствуйте, <strong>${data.name}</strong>!</p>
+    <p style="color:#52525B;">Для вас создан личный кабинет в Сервисном портале «Эффективная Техника»${data.company_name ? ` от организации <strong>${data.company_name}</strong>` : ''}.</p>
+    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:16px;margin:16px 0;font-size:14px;">
+      <div style="margin-bottom:8px;"><span style="color:#71717A;">Email для входа:</span> <strong>${toEmail}</strong></div>
+      <div><span style="color:#71717A;">Пароль:</span> <strong>${data.password}</strong></div>
+    </div>
+    <p style="color:#EF4444;font-size:13px;margin-bottom:4px;">⚠ Рекомендуем сменить пароль после первого входа.</p>
+    ${btn('Войти в личный кабинет', FRONTEND())}
+  `);
+  await send(toEmail, 'Доступ в личный кабинет — Эффективная Техника', html);
+}
+
 // ─── 5. Новый сотрудник → сотруднику с данными входа ────────────────────────
 async function sendStaffWelcome(toEmail, data) {
   const roleLabel = data.role === 'director' ? 'Руководитель' : data.role === 'manager' ? 'Менеджер' : 'Инженер';
@@ -218,6 +234,7 @@ module.exports = {
   sendRegistrationApproved,
   sendRegistrationRejected,
   sendStaffWelcome,
+  sendClientUserWelcome,
   sendTicketCreated,
   sendTicketStatusChanged,
   sendTicketAssigned,
