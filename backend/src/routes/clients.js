@@ -276,6 +276,23 @@ router.patch('/:id/users/:userId', authMiddleware, async (req, res) => {
   }
 });
 
+// DELETE /api/clients/:id/users/:userId — удалить учётку клиента (директор и менеджер)
+router.delete('/:id/users/:userId', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'director' && req.user.role !== 'manager') {
+    return res.status(403).json({ error: 'Нет доступа' });
+  }
+  try {
+    const { rowCount } = await pool.query(
+      'DELETE FROM client_users WHERE id = $1 AND client_id = $2',
+      [req.params.userId, req.params.id]
+    );
+    if (rowCount === 0) return res.status(404).json({ error: 'Учётка не найдена' });
+    res.json({ message: 'Учётка удалена' });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 // POST /api/clients/:id/users/:userId/reset-password — сотрудник сбрасывает клиенту пароль
 router.post('/:id/users/:userId/reset-password', authMiddleware, async (req, res) => {
   const { password } = req.body;

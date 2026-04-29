@@ -28,6 +28,7 @@ export default function ClientDetail() {
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '' })
   const [resetPwdUser, setResetPwdUser] = useState<ClientUser | null>(null)
   const [resetPwd, setResetPwd] = useState('')
+  const [deleteUser, setDeleteUser] = useState<ClientUser | null>(null)
 
   const loadUsers = () => {
     if (!id) return
@@ -66,6 +67,18 @@ export default function ClientDetail() {
       setResetPwdUser(null)
       setResetPwd('')
     } catch { toast.error('Ошибка') }
+  }
+
+  const handleDeleteUser = async () => {
+    if (!deleteUser) return
+    try {
+      await api.delete(`/clients/${id}/users/${deleteUser.id}`)
+      toast.success('Учётка удалена')
+      setDeleteUser(null)
+      loadUsers()
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Ошибка')
+    }
   }
 
   const handleDelete = async () => {
@@ -254,6 +267,12 @@ export default function ClientDetail() {
                       title={u.is_active ? 'Заблокировать' : 'Разблокировать'}>
                       {u.is_active ? <Lock size={15} /> : <Unlock size={15} />}
                     </button>
+                    {(user?.role === 'director' || user?.role === 'manager') && (
+                      <button onClick={() => setDeleteUser(u)}
+                        className="text-[#71717A] hover:text-[#CC0033] transition-colors" title="Удалить">
+                        <Trash2 size={15} />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -288,6 +307,22 @@ export default function ClientDetail() {
               <button onClick={() => { setShowAddUser(false); setNewUser({ name:'', email:'', password:'' }) }}
                 className="btn btn-secondary flex-1 justify-center">Отмена</button>
               <button onClick={handleAddUser} className="btn btn-primary flex-[2] justify-center">Создать</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete user modal */}
+      {deleteUser && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border border-[#E4E4E7] w-full max-w-md p-6 shadow-lg">
+            <h3 className="font-bold text-[#18181B] mb-2">Удалить учётку?</h3>
+            <p className="text-sm text-[#71717A] mb-4">
+              Учётная запись <strong>{deleteUser.name}</strong> ({deleteUser.email}) будет удалена. Этот сотрудник больше не сможет войти в ЛК. Заявки клиента сохраняются.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteUser(null)} className="btn btn-secondary flex-1 justify-center">Отмена</button>
+              <button onClick={handleDeleteUser} className="btn btn-danger flex-[2] justify-center">Удалить</button>
             </div>
           </div>
         </div>
