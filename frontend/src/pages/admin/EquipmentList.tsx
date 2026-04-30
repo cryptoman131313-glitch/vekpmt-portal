@@ -167,7 +167,12 @@ export default function EquipmentList() {
                 {/* Модели марки */}
                 {isOpen && (
                   <div className="border-t border-[#F4F4F5]">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm table-fixed">
+                      <colgroup>
+                        <col style={{ width: 'auto' }} />
+                        <col style={{ width: 320 }} />
+                        <col style={{ width: 120 }} />
+                      </colgroup>
                       <thead>
                         <tr className="border-b border-[#E4E4E7] bg-[#FAFAFA]">
                           {['Модель', 'Серийный №', 'Заявок'].map(h => (
@@ -179,8 +184,8 @@ export default function EquipmentList() {
                         {visibleEqs.map(eq => (
                           <tr key={eq.id} onClick={() => navigate(`/admin/equipment/${eq.id}`)}
                             className="border-b border-[#F4F4F5] last:border-b-0 hover:bg-[#FAFAFA] cursor-pointer transition-colors">
-                            <td className="px-5 py-2.5 font-semibold text-[#18181B]">{eq.model}</td>
-                            <td className="px-5 py-2.5 text-[#71717A]">{eq.serial_number || '—'}</td>
+                            <td className="px-5 py-2.5 font-semibold text-[#18181B] truncate">{eq.model}</td>
+                            <td className="px-5 py-2.5 text-[#71717A] truncate">{eq.serial_number || '—'}</td>
                             <td className="px-5 py-2.5 font-bold text-[#CC0033]">{eq.tickets_count}</td>
                           </tr>
                         ))}
@@ -227,7 +232,13 @@ export default function EquipmentList() {
                 </div>
                 {isOpen && (
                   <div className="border-t border-[#F4F4F5]">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm table-fixed">
+                      <colgroup>
+                        <col style={{ width: 'auto' }} />
+                        <col style={{ width: 220 }} />
+                        <col style={{ width: 260 }} />
+                        <col style={{ width: 120 }} />
+                      </colgroup>
                       <thead>
                         <tr className="border-b border-[#E4E4E7] bg-[#FAFAFA]">
                           {['Модель', 'Производитель', 'Серийный №', 'Заявок'].map(h => (
@@ -239,9 +250,9 @@ export default function EquipmentList() {
                         {visibleEqs.map(eq => (
                           <tr key={eq.id} onClick={() => navigate(`/admin/equipment/${eq.id}`)}
                             className="border-b border-[#F4F4F5] last:border-b-0 hover:bg-[#FAFAFA] cursor-pointer transition-colors">
-                            <td className="px-5 py-2.5 font-semibold">{eq.model}</td>
-                            <td className="px-5 py-2.5 text-[#71717A]">{eq.manufacturer || '—'}</td>
-                            <td className="px-5 py-2.5 text-[#71717A]">{eq.serial_number || '—'}</td>
+                            <td className="px-5 py-2.5 font-semibold truncate">{eq.model}</td>
+                            <td className="px-5 py-2.5 text-[#71717A] truncate">{eq.manufacturer || '—'}</td>
+                            <td className="px-5 py-2.5 text-[#71717A] truncate">{eq.serial_number || '—'}</td>
                             <td className="px-5 py-2.5 font-bold">{eq.tickets_count}</td>
                           </tr>
                         ))}
