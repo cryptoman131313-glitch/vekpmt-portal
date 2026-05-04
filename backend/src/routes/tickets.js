@@ -424,6 +424,15 @@ router.post('/:id/messages', authMiddleware, async (req, res) => {
       [req.params.id, req.user.id, channel, content]
     );
 
+    // Привязываем загруженные вложения к этому сообщению
+    const attachIds = Array.isArray(req.body.attachment_ids) ? req.body.attachment_ids.filter(Boolean) : [];
+    if (attachIds.length > 0) {
+      await pool.query(
+        `UPDATE attachments SET message_id = $1 WHERE id = ANY($2::uuid[]) AND ticket_id = $3 AND message_id IS NULL`,
+        [rows[0].id, attachIds, req.params.id]
+      );
+    }
+
     await pool.query('UPDATE tickets SET updated_at = NOW() WHERE id = $1', [req.params.id]);
 
     // Авто-статус только для канала Обращение
@@ -605,6 +614,16 @@ router.post('/:id/messages/client', clientAuth, async (req, res) => {
        VALUES ($1, 'client', $2, 'appeal', $3) RETURNING *`,
       [req.params.id, req.client.id, content]
     );
+
+    // Привязываем загруженные клиентом вложения к этому сообщению
+    const attachIds = Array.isArray(req.body.attachment_ids) ? req.body.attachment_ids.filter(Boolean) : [];
+    if (attachIds.length > 0) {
+      await pool.query(
+        `UPDATE attachments SET message_id = $1 WHERE id = ANY($2::uuid[]) AND ticket_id = $3 AND message_id IS NULL`,
+        [rows[0].id, attachIds, req.params.id]
+      );
+    }
+
     await pool.query('UPDATE tickets SET updated_at = NOW() WHERE id = $1', [req.params.id]);
     await pool.query(
       `INSERT INTO ticket_history (ticket_id, changed_by, changed_by_type, field_name, old_value, new_value)

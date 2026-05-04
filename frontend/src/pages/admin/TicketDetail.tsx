@@ -18,8 +18,9 @@ interface StaffUser { id: string; name: string; role: string }
 interface Message {
   id: string; sender_type: string; sender_name: string; sender_role: string
   channel: string; content: string; is_edited: boolean; created_at: string; sender_id: string
+  attachments?: Attachment[]
 }
-interface Attachment { id: string; filename: string; filepath: string; filesize: number; mimetype: string; uploaded_by_name: string; created_at: string }
+interface Attachment { id: string; filename: string; filepath: string; filesize: number; mimetype: string; uploaded_by_name: string; uploaded_by_type?: string; created_at: string; message_id?: string | null }
 interface HistoryRecord { id: string; field_name: string; old_value: string; new_value: string; changed_by_name: string; changed_by_role: string; changed_by_type: string; created_at: string }
 interface HistoryStats { ticket_created: string; first_staff_reply: string | null; time_to_first_response_ms: number | null; avg_response_time_ms: number | null; total_messages: number; staff_messages: number; client_messages: number }
 
@@ -49,6 +50,9 @@ export default function TicketDetail() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const msgCache = useRef<Record<string, Message[]>>({})
+  // Очередь локальных файлов до отправки сообщения
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [sending, setSending] = useState(false)
 
   useEffect(() => {
     api.get(`/tickets/${id}`).then(r => { setTicket(r.data); setStatus(r.data.status); setAssignedTo(r.data.assigned_to || '') }).catch(() => navigate('/admin/tickets'))
@@ -108,18 +112,47 @@ export default function TicketDetail() {
   }
 
   const handleSend = async () => {
-    if (!text.trim()) return
+    const trimmed = text.trim()
+    if (!trimmed && pendingFiles.length === 0) return
+    if (sending) return
+    setSending(true)
+
     const optimistic: Message = {
       id: `tmp-${Date.now()}`, sender_type: 'user', sender_name: user?.name || '',
-      sender_role: user?.role || '', channel, content: text, is_edited: false,
+      sender_role: user?.role || '', channel, content: trimmed || '📎', is_edited: false,
       created_at: new Date().toISOString(), sender_id: user?.id || ''
     }
     setMessages(prev => [...prev, optimistic])
+    const sentText = trimmed || ''
+    const filesToSend = pendingFiles
     setText('')
+    setPendingFiles([])
+
     try {
-      await api.post(`/tickets/${id}/messages`, { content: optimistic.content, channel })
+      // 1) Загружаем файлы (без message_id) — собираем их id
+      const attachmentIds: string[] = []
+      for (const f of filesToSend) {
+        const fd = new FormData()
+        fd.append('file', f)
+        try {
+          const r = await api.post(`/tickets/${id}/attachments`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+          if (r.data?.id) attachmentIds.push(r.data.id)
+        } catch {
+          toast.error(`Не удалось загрузить ${f.name}`)
+        }
+      }
+
+      // 2) Отправляем сообщение с привязкой вложений
+      await api.post(`/tickets/${id}/messages`, { content: sentText, channel, attachment_ids: attachmentIds })
+
       loadMessages()
-    } catch { toast.error('Ошибка отправки'); setMessages(prev => prev.filter(m => m.id !== optimistic.id)) }
+      loadAttachments()
+    } catch {
+      toast.error('Ошибка отправки')
+      setMessages(prev => prev.filter(m => m.id !== optimistic.id))
+    } finally {
+      setSending(false)
+    }
   }
 
   const handleEdit = async (msgId: string) => {
@@ -149,18 +182,14 @@ export default function TicketDetail() {
     }).catch(() => {})
   }
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const fd = new FormData()
-    fd.append('file', file)
-    try {
-      await api.post(`/tickets/${id}/attachments`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
-      loadAttachments()
-      toast.success('Файл прикреплён')
-    } catch { toast.error('Ошибка загрузки') }
+  // Файлы добавляются в локальную очередь и отправляются вместе с сообщением
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+    setPendingFiles(prev => [...prev, ...files])
     e.target.value = ''
   }
+  const removePendingFile = (idx: number) => setPendingFiles(prev => prev.filter((_, i) => i !== idx))
 
   const handleDeleteTicket = async () => {
     try {
@@ -293,6 +322,12 @@ export default function TicketDetail() {
                       ${channel === 'service' ? 'bg-yellow-50 border border-yellow-100' : channel === 'notes' ? 'bg-purple-50 border border-purple-100' : 'bg-[#F4F4F5]'}`}>
                       {m.content}
                     </div>
+                    {/* Вложения сообщения */}
+                    {m.attachments && m.attachments.length > 0 && (
+                      <div className="mt-1.5 space-y-1.5">
+                        {m.attachments.map(a => <MessageAttachment key={a.id} att={a} />)}
+                      </div>
+                    )}
                     {m.sender_type === 'user' && m.sender_id === user?.id && (user?.role === 'director' || user?.permissions?.can_edit_messages) && (
                       <div className="hidden group-hover:flex gap-1 mt-1">
                         <button onClick={() => { setEditId(m.id); setEditText(m.content) }}
@@ -353,56 +388,50 @@ export default function TicketDetail() {
             placeholder={channel === 'appeal' ? 'Ответ клиенту...' : channel === 'service' ? 'Служебное сообщение...' : 'Примечание...'}
             value={text} onChange={e => setText(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }} />
+          {/* Очередь файлов перед отправкой */}
+          {pendingFiles.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {pendingFiles.map((f, i) => (
+                <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 bg-[#FAFAFA] border border-[#E4E4E7] rounded text-xs">
+                  <File size={12} className="text-[#71717A]" />
+                  <span className="text-[#18181B] max-w-[180px] truncate">{f.name}</span>
+                  <span className="text-[#A1A1AA]">{(f.size / 1024).toFixed(0)} КБ</span>
+                  <button onClick={() => removePendingFile(i)} className="text-[#A1A1AA] hover:text-[#CC0033] ml-0.5"><XIcon size={12} /></button>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex items-center justify-between mt-2">
             <span className="text-[10px] text-[#A1A1AA]">Enter — отправить · Shift+Enter — новая строка</span>
             <div className="flex items-center gap-2">
-              <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} />
+              <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileUpload} />
               <button onClick={() => fileInputRef.current?.click()}
                 className="btn btn-secondary"
                 style={{ width: 36, height: 36, padding: 0, justifyContent: 'center' }}
                 title="Прикрепить файл">
                 <Paperclip size={16} />
               </button>
-              <button onClick={handleSend} className="btn btn-primary gap-2" style={{ height: 36, paddingLeft: 16, paddingRight: 16 }}>
-                <Send size={15} /> Отправить
+              <button onClick={handleSend} disabled={sending} className="btn btn-primary gap-2 disabled:opacity-60" style={{ height: 36, paddingLeft: 16, paddingRight: 16 }}>
+                <Send size={15} /> {sending ? 'Отправка...' : 'Отправить'}
               </button>
             </div>
           </div>
         </div>}
 
-        {/* Attachments */}
-        {channel !== 'history' && attachments.length > 0 && (
-          <div className="border-t border-[#E4E4E7] px-4 py-3">
-            <div className="text-xs font-semibold text-[#A1A1AA] uppercase mb-2">Вложения ({attachments.length})</div>
-            <div className="space-y-1.5">
-              {attachments.map(a => (
-                <div key={a.id} className="flex items-center gap-2 p-2 rounded-lg bg-[#FAFAFA] border border-[#E4E4E7] group">
-                  <File size={14} className="text-[#71717A] flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-[#18181B] truncate">{a.filename}</div>
-                    <div className="text-[10px] text-[#A1A1AA]">{a.uploaded_by_name} · {(a.filesize / 1024).toFixed(0)} КБ</div>
-                  </div>
-                  <button type="button" title="Просмотр" onClick={async () => {
-                    try {
-                      const { data } = await api.post(`/tickets/attachments/${a.id}/download-link`)
-                      window.open(`${data.url}&inline=1`, '_blank', 'noopener')
-                    } catch { toast.error('Не удалось открыть') }
-                  }} className="text-[#003399] hover:text-[#0044cc] opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Eye size={14} />
-                  </button>
-                  <button type="button" title="Скачать" onClick={async () => {
-                    try {
-                      const { data } = await api.post(`/tickets/attachments/${a.id}/download-link`)
-                      window.location.href = data.url
-                    } catch { toast.error('Не удалось скачать') }
-                  }} className="text-[#003399] hover:text-[#0044cc] opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Download size={14} />
-                  </button>
-                </div>
-              ))}
+        {/* Общие вложения (не привязаны к конкретному сообщению) */}
+        {(() => {
+          if (channel === 'history') return null
+          const generalAttachments = attachments.filter(a => !a.message_id)
+          if (generalAttachments.length === 0) return null
+          return (
+            <div className="border-t border-[#E4E4E7] px-4 py-3">
+              <div className="text-xs font-semibold text-[#A1A1AA] uppercase mb-2">Общие вложения ({generalAttachments.length})</div>
+              <div className="space-y-1.5">
+                {generalAttachments.map(a => <MessageAttachment key={a.id} att={a} extended />)}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
       </div>
 
       {/* Удаление заявки */}
@@ -473,6 +502,50 @@ function InfoItem({ label, value }: { label: string; value: React.ReactNode }) {
     <div>
       <div className="text-xs font-semibold text-[#A1A1AA] mb-0.5">{label}</div>
       <div className="text-sm text-[#18181B]">{value || '—'}</div>
+    </div>
+  )
+}
+
+// Компактная плашка вложения сообщения. Слева — цветная полоса:
+// красная для сотрудника, синяя для клиента.
+function MessageAttachment({ att, extended = false }: { att: Attachment; extended?: boolean }) {
+  const isClient = att.uploaded_by_type === 'client'
+  const stripe = isClient ? '#003399' : '#CC0033'
+
+  const handleDownload = async () => {
+    try {
+      const { data } = await api.post(`/tickets/attachments/${att.id}/download-link`)
+      window.location.href = data.url
+    } catch { toast.error('Не удалось скачать') }
+  }
+  const handlePreview = async () => {
+    try {
+      const { data } = await api.post(`/tickets/attachments/${att.id}/download-link`)
+      window.open(`${data.url}&inline=1`, '_blank', 'noopener')
+    } catch { toast.error('Не удалось открыть') }
+  }
+
+  return (
+    <div className="flex items-center gap-2 p-2 pl-3 rounded-lg bg-white border border-[#E4E4E7] group"
+      style={{ borderLeft: `4px solid ${stripe}` }}>
+      <File size={14} className="text-[#71717A] flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-medium text-[#18181B] truncate">{att.filename}</div>
+        {extended && (
+          <div className="text-[10px] text-[#A1A1AA]">{att.uploaded_by_name} · {(att.filesize / 1024).toFixed(0)} КБ</div>
+        )}
+        {!extended && (
+          <div className="text-[10px] text-[#A1A1AA]">{(att.filesize / 1024).toFixed(0)} КБ</div>
+        )}
+      </div>
+      <button type="button" title="Просмотр" onClick={handlePreview}
+        className="text-[#003399] hover:text-[#0044cc] opacity-0 group-hover:opacity-100 transition-opacity">
+        <Eye size={14} />
+      </button>
+      <button type="button" title="Скачать" onClick={handleDownload}
+        className="text-[#003399] hover:text-[#0044cc] opacity-60 group-hover:opacity-100 transition-opacity">
+        <Download size={14} />
+      </button>
     </div>
   )
 }
