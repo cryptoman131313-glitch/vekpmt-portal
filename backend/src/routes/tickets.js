@@ -399,7 +399,8 @@ router.get('/:id/messages', authMiddleware, async (req, res) => {
 // POST /api/tickets/:id/messages — отправить сообщение (сотрудник)
 router.post('/:id/messages', authMiddleware, async (req, res) => {
   const { content, channel = 'appeal' } = req.body;
-  if (!content && !req.body.attachments) {
+  const hasAttachIds = Array.isArray(req.body.attachment_ids) && req.body.attachment_ids.length > 0;
+  if (!content && !hasAttachIds) {
     return res.status(400).json({ error: 'Введите сообщение' });
   }
 
@@ -603,7 +604,8 @@ router.get('/:id/messages/client', clientAuth, async (req, res) => {
 // POST /api/tickets/:id/messages/client — клиент отправляет сообщение
 router.post('/:id/messages/client', clientAuth, async (req, res) => {
   const { content } = req.body;
-  if (!content) return res.status(400).json({ error: 'Введите сообщение' });
+  const hasAttachIds = Array.isArray(req.body.attachment_ids) && req.body.attachment_ids.length > 0;
+  if (!content && !hasAttachIds) return res.status(400).json({ error: 'Введите сообщение' });
   try {
     const ticket = await pool.query('SELECT client_id FROM tickets WHERE id = $1', [req.params.id]);
     if (!ticket.rows[0] || ticket.rows[0].client_id !== req.client.id) {
