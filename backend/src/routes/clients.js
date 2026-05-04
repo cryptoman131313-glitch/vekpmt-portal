@@ -45,7 +45,16 @@ router.get('/', authMiddleware, async (req, res) => {
         (SELECT COUNT(*) FROM tickets t WHERE t.client_id = c.id) as tickets_count
        FROM clients c
        WHERE ($1::text IS NULL OR c.company_name ILIKE $1 OR c.contact_name ILIKE $1 OR c.contact_email ILIKE $1 OR c.contact_phone ILIKE $1 OR c.inn ILIKE $1)
-       ORDER BY c.company_name ASC`,
+       ORDER BY
+         LOWER(
+           REGEXP_REPLACE(
+             c.company_name,
+             '^\\s*(ООО|ОАО|ЗАО|ПАО|АО|ИП|НКО|АНО|ГУП|МУП|ФГУП|ГК|АНП)\\s*[«"''‘’"' ]*',
+             '',
+             'i'
+           )
+         ) ASC,
+         LOWER(c.company_name) ASC`,
       [search ? `%${search}%` : null]
     );
     res.json(rows);
