@@ -16,6 +16,7 @@ interface AutoStatuses { created?: string; assigned?: string; staff_replied?: st
 interface TicketType { id: string; name: string; color: string; statuses: TicketStatus[]; auto_statuses: AutoStatuses }
 
 const ROLES = [
+  { value: 'director', label: 'Руководитель' },
   { value: 'manager', label: 'Менеджер' },
   { value: 'engineer', label: 'Инженер' },
 ]

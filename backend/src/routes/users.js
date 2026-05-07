@@ -59,10 +59,13 @@ router.post('/', authMiddleware, requireRole('director'), async (req, res) => {
     const password_hash = await bcrypt.hash(password, 12);
     const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
+    // Руководитель всегда получает все права (зеркало логики PATCH)
+    const finalPermissions = role === 'director' ? ALL_PERMISSIONS : (permissions || {});
+
     const { rows } = await pool.query(
       `INSERT INTO users (email, name, role, password_hash, avatar, permissions)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, name, role, avatar, permissions`,
-      [email.toLowerCase(), name, role, password_hash, initials, permissions || {}]
+      [email.toLowerCase(), name, role, password_hash, initials, finalPermissions]
     );
     res.status(201).json(rows[0]);
 
